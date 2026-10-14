@@ -3,111 +3,388 @@ import { useState, useEffect, useRef } from "react"
 import type React from "react"
 
 import Image from "next/image"
+import { Poppins } from "next/font/google"
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
 import {
+  ChevronRight,
+  Star,
   Download,
-  ExternalLink,
-  FileText,
+  Mail,
+  Phone,
+  MessageCircle,
   History,
   Instagram,
-  Mail,
   Facebook,
-  Star,
-  ShoppingBag,
-  Smartphone,
-  LifeBuoy,
-  Zap,
-  CheckCircle2,
-  Clock,
+  ExternalLink,
+  MapPin,
+  Gem,
+  Sparkles,
+  Heart,
+  Gift,
+  Copy,
+  Check,
   X,
-  QrCode,
+  BadgeCheck,
+  Hand,
+  Package,
+  Clock,
+  ShoppingBag,
+  CalendarDays,
+  FileText,
 } from "lucide-react"
 
-// Indian Rupee formatter
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
+})
+
+/* ------------------------------------------------------------------ */
+/*  BRAND TOKENS                                                       */
+/*  #903535 is Anaar's theme colour (read from shopanaar.com).          */
+/*  Gold / ivory / ink are proposed and must be confirmed with Anaar.   */
+/* ------------------------------------------------------------------ */
+const GOLD_FOIL = "linear-gradient(135deg,#F1DDA0 0%,#C9A24B 38%,#A9822F 62%,#E7CF8E 100%)"
+const HERO_BG =
+  "radial-gradient(120% 90% at 50% 0%, #7A2A30 0%, #5A1D25 45%, #3A1218 100%)"
+
+/* Optional: set to the real Anaar logo (gold, transparent PNG/SVG). Falls back to a wordmark. */
+const LOGO_SRC = ""
+
+/* Boutique details — replace with the store's real values before going live. */
+const STORE = {
+  name: "Anaar",
+  gstin: "29XXXXXXXXXX1Z5",
+  locatorUrl: "https://shopanaar.com/pages/store",
+}
+
+const BRAND = {
+  site: "https://shopanaar.com",
+  instagram: "https://www.instagram.com/worldofanaar/",
+  facebook: "https://www.facebook.com/shopanaar",
+  whatsapp: "https://wa.me/918655978333",
+  phone: "tel:+918655978333",
+  phoneLabel: "+91 86559 78333",
+  email: "mailto:customercare@anaar.in",
+  returnPolicy: "https://shopanaar.com/pages/return-policy",
+  terms: "https://shopanaar.com/pages/terms-of-services",
+}
+
+const GST_RATE = 0.18 // footwear priced above ₹2,500 per pair
+
+/* ------------------------------------------------------------------ */
+/*  HELPERS                                                            */
+/* ------------------------------------------------------------------ */
+const r2 = (n: number) => Math.round(n * 100) / 100
 const fmt = (n: number) =>
   `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+const fmt0 = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
 
-const APP_LINK = "https://onelink.to/bcvnnr"
-const GST_RATE = 0.05 // 5% total = 2.5% CGST + 2.5% SGST
+const ONES = [
+  "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven",
+  "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+]
+const TENS = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+const two = (n: number) => (n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? `-${ONES[n % 10]}` : ""))
+const three = (n: number) =>
+  (n >= 100 ? `${ONES[Math.floor(n / 100)]} Hundred${n % 100 ? " " : ""}` : "") + (n % 100 ? two(n % 100) : "")
 
-// Zigzag torn-paper edge — classic thermal-receipt tear
-function ZigzagEdge({ flip = false }: { flip?: boolean }) {
+function inrWords(amount: number) {
+  const rupees = Math.floor(amount)
+  const paise = Math.round((amount - rupees) * 100)
+  const crore = Math.floor(rupees / 10000000)
+  const lakh = Math.floor(rupees / 100000) % 100
+  const thousand = Math.floor(rupees / 1000) % 100
+  const rest = rupees % 1000
+  const parts = [
+    crore ? `${three(crore)} Crore` : "",
+    lakh ? `${two(lakh)} Lakh` : "",
+    thousand ? `${two(thousand)} Thousand` : "",
+    rest ? three(rest) : "",
+  ].filter(Boolean)
+  const rupeeText = `${parts.join(" ") || "Zero"} Rupees`
+  return paise ? `${rupeeText} and ${two(paise)} Paise Only` : `${rupeeText} Only`
+}
+
+/* ------------------------------------------------------------------ */
+/*  DATA  (SKUs / HSN from Anaar's product list; prices from the site)  */
+/*  Sizes are illustrative: the list does not map SKU to size.          */
+/* ------------------------------------------------------------------ */
+type RawItem = {
+  id: number
+  name: string
+  category: string
+  size: string
+  sku: string
+  hsn: string
+  price: number
+  qty: number
+}
+type RawReceipt = {
+  id: string
+  date: string
+  time: string
+  associate: string
+  payment: string
+  items: RawItem[]
+}
+
+const RAW_RECEIPTS: Record<string, RawReceipt> = {
+  current: {
+    id: "ANR100326101400421",
+    date: "14-10-2026",
+    time: "12:41:18",
+    associate: "Meera Nair",
+    payment: "Google Pay · UPI",
+    items: [
+      { id: 0, name: "Marilyn Wedge Sneakers", category: "Wedge Sneakers", size: "38", sku: "8904430800754", hsn: "64022090", price: 11990, qty: 1 },
+      { id: 1, name: "Raanjhan Platform Sandals", category: "Platforms", size: "39", sku: "8904430816694", hsn: "64022090", price: 14990, qty: 1 },
+      { id: 2, name: "Hyderabad Heera Ballerinas", category: "Ballerinas", size: "37", sku: "8904430836609", hsn: "64041990", price: 4990, qty: 1 },
+    ],
+  },
+  hist1: {
+    id: "ANR100326091700318",
+    date: "17-09-2026",
+    time: "18:05:42",
+    associate: "Ritu Sharma",
+    payment: "Visa •••• 4532",
+    items: [
+      { id: 0, name: "Boogie Woogie Classic Sneakers", category: "Flat Sneakers", size: "38", sku: "8904430807708", hsn: "64022090", price: 8990, qty: 1 },
+      { id: 1, name: "Jaipur Johari Ballerinas", category: "Ballerinas", size: "36", sku: "8904430836388", hsn: "64041990", price: 3990, qty: 1 },
+    ],
+  },
+  hist2: {
+    id: "ANR100326072200207",
+    date: "22-07-2026",
+    time: "15:27:09",
+    associate: "Meera Nair",
+    payment: "Google Pay · UPI",
+    items: [
+      { id: 0, name: "Disco 22 Signature Wedge Sneakers", category: "Wedge Sneakers", size: "38", sku: "8904430800846", hsn: "64022090", price: 9990, qty: 1 },
+    ],
+  },
+}
+
+function buildReceipt(raw: RawReceipt) {
+  const items = raw.items.map((it) => {
+    const line = it.price * it.qty
+    const base = r2(line / (1 + GST_RATE))
+    return { ...it, line, base, gst: r2(line - base) }
+  })
+  const total = items.reduce((s, i) => s + i.line, 0)
+  const subtotal = r2(items.reduce((s, i) => s + i.base, 0))
+  const tax = r2(total - subtotal)
+  const cgst = r2(tax / 2)
+  const sgst = r2(tax - cgst)
+  return { ...raw, items, total, subtotal, tax, cgst, sgst }
+}
+type Receipt = ReturnType<typeof buildReceipt>
+
+const RECEIPTS: Record<string, Receipt> = {
+  current: buildReceipt(RAW_RECEIPTS.current),
+  hist1: buildReceipt(RAW_RECEIPTS.hist1),
+  hist2: buildReceipt(RAW_RECEIPTS.hist2),
+}
+
+const OCCASIONS = [
+  { label: "Wedding", url: "https://shopanaar.com/collections/wedding-footwear-essentials-for-women" },
+  { label: "Sangeet / Cocktail", url: "https://shopanaar.com/collections/sangeet-cocktail-footwear-essentials-for-women" },
+  { label: "Haldi / Mehendi", url: "https://shopanaar.com/collections/haldi-mehendi-footwear-essentials-for-women" },
+  { label: "Engagement / Reception", url: "https://shopanaar.com/collections/engagement-reception-footwear-essentials-for-women" },
+  { label: "Honeymoon", url: "https://shopanaar.com/collections/honeymoon-footwear-essentials-for-women" },
+  { label: "Everyday", url: "https://shopanaar.com/collections/everyday-essentials" },
+]
+
+const COMPLETE_THE_LOOK = [
+  { name: "Seaside Dazzler", kind: "Mobile Chain", price: 4990, url: "https://shopanaar.com/collections/mobile-chains", Icon: Gem },
+  { name: "Tribe Slingette", kind: "Clutch", price: 11990, url: "https://shopanaar.com/products/tribe-slingette-clutch", Icon: ShoppingBag },
+  { name: "Maharani Glow", kind: "Charm", price: 1200, url: "https://shopanaar.com/collections/charms", Icon: Sparkles },
+  { name: "Golden Alphabet", kind: "Charm", price: 150, url: "https://shopanaar.com/collections/charms", Icon: Heart },
+  { name: "Luna Mini Dazzler", kind: "Chain", price: 1990, url: "https://shopanaar.com/collections/mobile-chains", Icon: Gem },
+]
+
+const CARE_TIPS = [
+  "Keep your pair in the dust bag it came in, away from direct sunlight.",
+  "Wipe gently with a soft, dry cloth. Avoid water on embroidery and embellishments.",
+  "Rotate between pairs so the cushioning and shape stay fresh.",
+]
+
+/* ------------------------------------------------------------------ */
+/*  SMALL PRESENTATIONAL PIECES                                        */
+/* ------------------------------------------------------------------ */
+function GoldText({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div
-      className="h-3 mx-3"
-      style={{
-        backgroundImage:
-          "linear-gradient(-45deg, white 8px, transparent 0), linear-gradient(45deg, white 8px, transparent 0)",
-        backgroundRepeat: "repeat-x",
-        backgroundSize: "16px 16px",
-        backgroundPosition: "left top",
-        transform: flip ? "scaleY(-1)" : "none",
-      }}
-    />
+    <span
+      className={className}
+      style={{ backgroundImage: GOLD_FOIL, WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent" }}
+    >
+      {children}
+    </span>
   )
 }
 
-// Circular scalloped "PAID" stamp — brand purple
-function PaidStamp() {
+function Diamond({ className = "" }: { className?: string }) {
+  return <span className={`inline-block h-1.5 w-1.5 rotate-45 bg-[#C9A24B] ${className}`} />
+}
+
+function SectionTitle({ eyebrow, title, right }: { eyebrow: string; title: string; right?: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 100 100" width="46" height="46" className="shrink-0" style={{ transform: "rotate(-8deg)" }}>
+    <div className="flex items-end justify-between mb-5">
+      <div>
+        <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-[0.3em] text-[#B08A35]">
+          <Diamond />
+          {eyebrow}
+        </div>
+        <h3 className="mt-1.5 text-[21px] font-light leading-tight tracking-[0.01em] text-[#2A1A1A]">{title}</h3>
+      </div>
+      {right}
+    </div>
+  )
+}
+
+function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <section
+      className={`mx-3 rounded-[28px] border border-[#E9DFCF] bg-[#FFFDF8] shadow-[0_14px_34px_-22px_rgba(58,18,24,0.45)] ${className}`}
+    >
+      {children}
+    </section>
+  )
+}
+
+function GoldRule() {
+  return (
+    <div className="flex items-center gap-3 px-1">
+      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A24B]/70 to-transparent" />
+      <Diamond />
+      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A24B]/70 to-transparent" />
+    </div>
+  )
+}
+
+function JaliPattern() {
+  return (
+    <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.09]" aria-hidden="true">
       <defs>
-        <path id="stampTopArc" d="M 12,50 A 38,38 0 1,1 88,50" fill="none" />
-        <path id="stampBottomArc" d="M 12,52 A 38,38 0 1,0 88,52" fill="none" />
+        <pattern id="anaarJali" width="38" height="38" patternUnits="userSpaceOnUse">
+          <path d="M19 2 L36 19 L19 36 L2 19 Z" fill="none" stroke="#E7CF8E" strokeWidth="0.8" />
+          <path d="M19 10 L28 19 L19 28 L10 19 Z" fill="none" stroke="#E7CF8E" strokeWidth="0.6" />
+          <circle cx="19" cy="19" r="1.8" fill="#E7CF8E" />
+        </pattern>
       </defs>
-      {/* scalloped outer ring */}
-      <circle cx="50" cy="50" r="47" fill="none" stroke="#3D1B78" strokeWidth="2.5" strokeDasharray="3.2 3.2" />
-      {/* inner ring */}
-      <circle cx="50" cy="50" r="34" fill="none" stroke="#3D1B78" strokeWidth="1.3" />
-      {/* curved top text */}
-      <text fontSize="6.5" fontWeight="800" fill="#3D1B78" letterSpacing="1">
-        <textPath href="#stampTopArc" startOffset="50%" textAnchor="middle">
-          THANK YOU
-        </textPath>
+      <rect width="100%" height="100%" fill="url(#anaarJali)" />
+    </svg>
+  )
+}
+
+/* A stylised pomegranate with a crown — the "anaar" — drawn in gold foil */
+function Pomegranate({ size = 96 }: { size?: number }) {
+  const seeds: Array<[number, number]> = [
+    [42, 52], [50, 48], [58, 52], [38, 62], [46, 60], [54, 60], [62, 62], [42, 70], [50, 68], [58, 70], [50, 77],
+  ]
+  return (
+    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
+      <defs>
+        <linearGradient id="anaarFoil" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F1DDA0" />
+          <stop offset="45%" stopColor="#C9A24B" />
+          <stop offset="100%" stopColor="#A9822F" />
+        </linearGradient>
+      </defs>
+      <path d="M38 34 L42 24 L46 31 L50 22 L54 31 L58 24 L62 34 Z" fill="none" stroke="url(#anaarFoil)" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M50 35 C30 35 22 52 26 66 C30 80 42 86 50 86 C58 86 70 80 74 66 C78 52 70 35 50 35 Z" fill="none" stroke="url(#anaarFoil)" strokeWidth="1.8" />
+      {seeds.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="2.6" fill="url(#anaarFoil)" opacity={0.9} />
+      ))}
+    </svg>
+  )
+}
+
+/* Circular "paid" seal — original, pomegranate-crown mark */
+function PaidSeal() {
+  return (
+    <svg viewBox="0 0 100 100" width="56" height="56" className="shrink-0" style={{ transform: "rotate(-10deg)" }} aria-label="Paid">
+      <defs>
+        <linearGradient id="anaarSealFoil" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F1DDA0" />
+          <stop offset="50%" stopColor="#C9A24B" />
+          <stop offset="100%" stopColor="#A9822F" />
+        </linearGradient>
+        <path id="anaarSealTop" d="M 14,50 A 36,36 0 1,1 86,50" fill="none" />
+        <path id="anaarSealBottom" d="M 14,53 A 36,36 0 1,0 86,53" fill="none" />
+      </defs>
+      <circle cx="50" cy="50" r="47" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="2" strokeDasharray="2.4 3.2" />
+      <circle cx="50" cy="50" r="40" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="1" />
+      <circle cx="50" cy="50" r="27" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="0.8" />
+      <text fontSize="6.2" fontWeight="600" fill="#E7CF8E" letterSpacing="1.6">
+        <textPath href="#anaarSealTop" startOffset="50%" textAnchor="middle">WITH LOVE</textPath>
       </text>
-      {/* center PAID */}
-      <text x="50" y="56" fontSize="17" fontWeight="900" fill="#3D1B78" textAnchor="middle" fontFamily="Poppins, sans-serif" letterSpacing="1">
-        PAID
-      </text>
-      {/* curved bottom text — reversed arc so it reads right-side up */}
-      <text fontSize="6.5" fontWeight="800" fill="#3D1B78" letterSpacing="1">
-        <textPath href="#stampBottomArc" startOffset="50%" textAnchor="middle">
-          CINÉPOLIS
-        </textPath>
+      <text x="50" y="55" fontSize="15" fontWeight="600" fill="url(#anaarSealFoil)" textAnchor="middle" letterSpacing="1.5">PAID</text>
+      <text fontSize="6.2" fontWeight="600" fill="#E7CF8E" letterSpacing="1.6">
+        <textPath href="#anaarSealBottom" startOffset="50%" textAnchor="middle">ANAAR</textPath>
       </text>
     </svg>
   )
 }
 
+/* ------------------------------------------------------------------ */
+/*  PAGE                                                               */
+/* ------------------------------------------------------------------ */
 export default function Home() {
-  const [currentSlide, setCurrentSlide] = useState(0)
+  const customerName = "Ananya"
+
+  const [currentReceiptId, setCurrentReceiptId] = useState<string>("current")
+  const [expandedProducts, setExpandedProducts] = useState<number[]>([])
+  const [expandedItemFeedback, setExpandedItemFeedback] = useState<number[]>([])
+  const [itemFeedback, setItemFeedback] = useState<Record<number, { rating?: number; tags?: string[] }>>({})
+  const [submittedItemFeedback, setSubmittedItemFeedback] = useState<Record<number, boolean>>({})
+
+  const [showHistory, setShowHistory] = useState(false)
   const [showTerms, setShowTerms] = useState(false)
-  const [showOrderHistory, setShowOrderHistory] = useState(false)
-  const receiptContainerRef = useRef<HTMLDivElement>(null)
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [showCare, setShowCare] = useState(false)
+  const [showStore, setShowStore] = useState(false)
+
   const [rating, setRating] = useState(0)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [feedbackText, setFeedbackText] = useState("")
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
-  const [currentOrderId, setCurrentOrderId] = useState("current")
+
+  const [tribe, setTribe] = useState({ name: customerName, mobile: "", email: "", occasion: "", date: "" })
+  const [tribeSubmitted, setTribeSubmitted] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
 
   const [promoApi, setPromoApi] = useState<CarouselApi>()
+  const [promoSlide, setPromoSlide] = useState(0)
+  const receiptContainerRef = useRef<HTMLDivElement>(null)
 
+  const receipt = RECEIPTS[currentReceiptId]
+  const itemCount = receipt.items.reduce((s, i) => s + i.qty, 0)
+
+  /* auto-play promo carousel */
   useEffect(() => {
     if (!promoApi) return
-    const interval = setInterval(() => {
-      promoApi.scrollNext()
-    }, 4000)
-    return () => clearInterval(interval)
+    const id = setInterval(() => promoApi.scrollNext(), 4500)
+    return () => clearInterval(id)
   }, [promoApi])
 
   useEffect(() => {
     if (!promoApi) return
-    promoApi.on("select", () => {
-      setCurrentSlide(promoApi.selectedScrollSnap())
-    })
+    const onSelect = () => setPromoSlide(promoApi.selectedScrollSnap())
+    promoApi.on("select", onSelect)
+    return () => {
+      promoApi.off("select", onSelect)
+    }
   }, [promoApi])
 
-  // Simple auto-height for WordPress iframe
+  /* reset per-receipt UI state when switching receipts */
+  useEffect(() => {
+    setItemFeedback({})
+    setExpandedItemFeedback([])
+    setSubmittedItemFeedback({})
+    setExpandedProducts([])
+  }, [currentReceiptId])
+
+  /* auto-height for WordPress / iframe embedding */
   useEffect(() => {
     const postHeight = () => {
       const marker = document.getElementById("height-marker")
@@ -127,506 +404,905 @@ export default function Home() {
     }
   }, [])
 
-  // Only the total order value (tax-inclusive) is source data — CGST/SGST/net are derived below
-  const rawOrders = {
-    current: {
-      bookingId: "2216",
-      bookingNo: "WGJHLNZ",
-      cinema: "Cinepolis Ireo",
-      orderDate: "07-05-2026",
-      orderTime: "09:55 PM",
-      paymentMethod: "Netbanking",
-      items: [
-        { name: "CINE SMILES 8PC NEW", qty: 1, price: 290.0 },
-        { name: "SODAS 400ML", qty: 1, price: 460.0 },
-      ],
-      totalOrderValue: 750.0,
-      gstin: "06AADCC2076J1ZQ",
-      hsn: "9996",
-      sac: "9963",
-      fssai: "10820005000077",
-    },
-    hist1: {
-      bookingId: "2109",
-      bookingNo: "WGJHK21",
-      cinema: "Cinepolis Saket, New Delhi",
-      orderDate: "16-06-2026",
-      orderTime: "07:40 PM",
-      paymentMethod: "UPI",
-      items: [
-        { name: "REGULAR POPCORN COMBO", qty: 1, price: 380.0 },
-        { name: "COLD COFFEE 300ML", qty: 2, price: 320.0 },
-      ],
-      totalOrderValue: 700.0,
-      gstin: "07AADCC2076J1ZO",
-      hsn: "9996",
-      sac: "9963",
-      fssai: "10820005000077",
-    },
-    hist2: {
-      bookingId: "1988",
-      bookingNo: "WGJH887",
-      cinema: "Cinepolis Ireo",
-      orderDate: "02-05-2026",
-      orderTime: "06:10 PM",
-      paymentMethod: "Credit Card",
-      items: [
-        { name: "NACHOS WITH CHEESE", qty: 1, price: 260.0 },
-        { name: "MASALA POPCORN", qty: 1, price: 240.0 },
-      ],
-      totalOrderValue: 500.0,
-      gstin: "06AADCC2076J1ZQ",
-      hsn: "9996",
-      sac: "9963",
-      fssai: "10820005000077",
-    },
+  const showToast = (message: string) => {
+    setToast(message)
+    setTimeout(() => setToast(null), 2200)
   }
 
-  // Derive net F&B price + CGST + SGST from the tax-inclusive total
-  const withTaxBreakup = (order: (typeof rawOrders)["current"]) => {
-    const totalTax = order.totalOrderValue - order.totalOrderValue / (1 + GST_RATE)
-    const cgst = totalTax / 2
-    const sgst = totalTax / 2
-    const fbPrice = order.totalOrderValue - cgst - sgst
-    return { ...order, fbPrice, cgst, sgst }
+  const copyCode = async (code: string) => {
+    try {
+      await navigator.clipboard.writeText(code)
+      showToast(`${code} copied`)
+    } catch {
+      showToast("Press and hold to copy the code")
+    }
   }
 
-  const orders = {
-    current: withTaxBreakup(rawOrders.current),
-    hist1: withTaxBreakup(rawOrders.hist1),
-    hist2: withTaxBreakup(rawOrders.hist2),
+  const toggleProduct = (id: number) =>
+    setExpandedProducts((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+
+  const toggleItemFeedback = (id: number) =>
+    setExpandedItemFeedback((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))
+
+  const setItemRating = (id: number, value: number) =>
+    setItemFeedback((p) => ({ ...p, [id]: { ...p[id], rating: value } }))
+
+  const toggleItemTag = (id: number, tag: string) =>
+    setItemFeedback((p) => {
+      const tags = p[id]?.tags || []
+      return { ...p, [id]: { ...p[id], tags: tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag] } }
+    })
+
+  const submitItemFeedback = (id: number) => {
+    if (!itemFeedback[id]?.rating) return
+    setSubmittedItemFeedback((p) => ({ ...p, [id]: true }))
+    setExpandedItemFeedback((p) => p.filter((x) => x !== id))
   }
-
-  const currentOrder = orders[currentOrderId]
-
-  const orderHistory = [
-    { id: "current", date: orders.current.orderDate, label: `${orders.current.items.length} items`, amount: orders.current.totalOrderValue },
-    { id: "hist1", date: orders.hist1.orderDate, label: `${orders.hist1.items.length} items`, amount: orders.hist1.totalOrderValue },
-    { id: "hist2", date: orders.hist2.orderDate, label: `${orders.hist2.items.length} items`, amount: orders.hist2.totalOrderValue },
-  ]
-
-  const totalItemsCount = currentOrder.items.reduce((sum, item) => sum + item.qty, 0)
 
   const handleFeedbackSubmit = () => {
-    if (!rating) {
-      alert("Please select a rating before submitting.")
+    if (!rating) return
+    setFeedbackSubmitted(true)
+  }
+
+  const handleTribeSubmit = () => {
+    if (!tribe.name.trim() || !tribe.mobile.trim()) {
+      showToast("Please add your name and mobile number")
       return
     }
-    setFeedbackSubmitted(true)
-    setTimeout(() => setFeedbackSubmitted(false), 5000)
+    setTribeSubmitted(true)
   }
 
-  const handleEmailReceipt = () => {
-    window.open(`mailto:?subject=Your Cinépolis F&B Order&body=Booking ID: ${currentOrder.bookingId}`)
-  }
+  const handleEmailReceipt = () =>
+    window.open(`mailto:?subject=${encodeURIComponent("Your Anaar receipt")}&body=${encodeURIComponent(`Receipt no. ${receipt.id}`)}`)
 
   const handleDownloadReceipt = () => {
-    const itemRows = currentOrder.items
+    const rows = receipt.items
       .map(
-        (item) => `<tr><td>${item.name}</td><td>${item.qty}</td><td>${fmt(item.price)}</td></tr>`
+        (it) => `
+<tr>
+  <td>
+    <div class="item-name">${it.name}</div>
+    <div class="item-meta">${it.category} · Size ${it.size}<br>SKU ${it.sku} · HSN ${it.hsn}</div>
+  </td>
+  <td class="c">${it.qty}</td>
+  <td class="r">${fmt(it.base)}</td>
+  <td class="r">${fmt(it.gst)}</td>
+  <td class="r"><strong>${fmt(it.line)}</strong></td>
+</tr>`,
       )
       .join("")
 
-    const receiptContent = `
-<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Cinépolis F&B Bill</title>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<title>Anaar Tax Invoice ${receipt.id}</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Poppins',sans-serif;font-size:14px;color:#111;background:#fff;width:800px;margin:0 auto;padding:24px;}
-.receipt-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px dashed #7742D8;}
-.company-info h1{font-size:30px;color:#3D1B78;font-weight:700;margin-bottom:4px;}
-.company-info p{font-size:12px;color:#555;line-height:1.4;}
-.bill-info{text-align:right;font-family:'Roboto Mono',monospace;font-size:12px;}
-.bill-info div{margin-bottom:4px;}
-.bill-id{font-weight:700;color:#3D1B78;}
-.order-section{background:#F4EEFD;padding:14px;border-left:4px solid #7742D8;border-radius:0 8px 8px 0;margin-bottom:22px;}
-.order-section h3{font-size:16px;color:#3D1B78;font-weight:700;margin-bottom:2px;}
-.order-section p{font-size:12px;color:#666;}
-.items-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-family:'Roboto Mono',monospace;}
-.items-table th{background:#3D1B78;color:#F9B233;padding:10px 8px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;}
-.items-table th:last-child, .items-table td:last-child{text-align:right;}
-.items-table th:nth-child(2), .items-table td:nth-child(2){text-align:center;}
-.items-table td{padding:12px 8px;border-bottom:1px dashed #eee;font-size:12px;vertical-align:top;}
-.totals-row td{color:#666;font-size:12px;border-bottom:none;padding:6px 8px;}
-.net-total-row td{font-weight:700;color:#3D1B78;font-size:16px;border-top:2px solid #F9B233;padding:12px 8px 4px;}
-.footer{text-align:center;margin-top:30px;padding-top:20px;border-top:1px dashed #ccc;font-size:12px;color:#555;}
-.footer strong{color:#3D1B78;}
+body{font-family:'Poppins',sans-serif;font-size:13px;color:#1E1616;background:#fff;width:800px;margin:0 auto;padding:32px;}
+.head{text-align:center;padding-bottom:22px;border-bottom:1px solid #C9A24B;margin-bottom:22px;}
+.head h1{font-size:30px;font-weight:300;letter-spacing:12px;color:#903535;padding-left:12px;}
+.head p{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#B08A35;margin-top:6px;}
+.meta{display:flex;justify-content:space-between;font-size:12px;line-height:1.8;margin-bottom:22px;}
+.meta .r{text-align:right;}
+.cust{background:#FAF6EE;border-left:3px solid #C9A24B;padding:14px 16px;margin-bottom:22px;font-size:12px;color:#5b4b45;}
+.cust strong{color:#903535;font-weight:500;}
+table{width:100%;border-collapse:collapse;margin-bottom:22px;}
+th{background:#903535;color:#F1DDA0;font-weight:500;text-transform:uppercase;letter-spacing:1px;font-size:10px;padding:11px 8px;text-align:left;}
+th.c,td.c{text-align:center;} th.r,td.r{text-align:right;}
+td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size:12px;}
+.item-name{font-weight:500;font-size:13px;}
+.item-meta{font-size:10.5px;color:#8A7B72;margin-top:4px;line-height:1.7;}
+.totals{margin-left:auto;width:280px;}
+.totals div{display:flex;justify-content:space-between;margin-bottom:8px;font-size:12px;color:#5b4b45;}
+.totals .grand{font-size:17px;font-weight:600;color:#903535;border-top:1px solid #C9A24B;padding-top:10px;margin-top:10px;}
+.words{margin-top:14px;font-size:11px;color:#5b4b45;}
+.foot{text-align:center;margin-top:34px;padding-top:20px;border-top:1px dashed #C9A24B;font-size:11px;color:#8A7B72;line-height:1.9;}
+.foot strong{color:#903535;font-weight:500;}
 @media print{body{-webkit-print-color-adjust:exact;width:100%;padding:0;}}
 </style>
 </head>
 <body>
-<div class="receipt-header">
-  <div class="company-info">
-    <h1>cinépolis</h1>
-    <p><strong>${currentOrder.cinema}</strong><br>F&amp;B Bill</p>
-  </div>
-  <div class="bill-info">
-    <div><strong>Booking ID:</strong> <span class="bill-id">${currentOrder.bookingId}</span></div>
-    <div><strong>Booking No.:</strong> ${currentOrder.bookingNo}</div>
-    <div><strong>Order Date &amp; Time:</strong> ${currentOrder.orderDate} | ${currentOrder.orderTime}</div>
-  </div>
+<div class="head"><h1>ANAAR</h1><p>Tax Invoice</p></div>
+<div class="meta">
+  <div><strong>${STORE.name}</strong><br>GSTIN: ${STORE.gstin}<br>Styled by ${receipt.associate}</div>
+  <div class="r">Receipt no. <strong>${receipt.id}</strong><br>${receipt.date} · ${receipt.time}<br>Paid via ${receipt.payment}</div>
 </div>
-<div class="order-section">
-  <h3>Food &amp; Beverages</h3>
-  <p>${currentOrder.items.length} items • Payment: ${currentOrder.paymentMethod}</p>
-</div>
-<table class="items-table">
-  <thead><tr><th>Item Name</th><th>Qty</th><th>Total Price</th></tr></thead>
-  <tbody>
-    ${itemRows}
-    <tr class="totals-row"><td colspan="2">F&amp;B Price</td><td>${fmt(currentOrder.fbPrice)}</td></tr>
-    <tr class="totals-row"><td colspan="2">CGST (2.5%)</td><td>${fmt(currentOrder.cgst)}</td></tr>
-    <tr class="totals-row"><td colspan="2">SGST (2.5%)</td><td>${fmt(currentOrder.sgst)}</td></tr>
-    <tr class="net-total-row"><td colspan="2">Total Order Value</td><td>${fmt(currentOrder.totalOrderValue)}</td></tr>
-  </tbody>
+<div class="cust"><strong>${customerName}</strong>, thank you for choosing Anaar. This receipt is your proof of purchase for exchanges and care.</div>
+<table>
+  <thead><tr><th>Piece</th><th class="c">Qty</th><th class="r">Taxable</th><th class="r">GST 18%</th><th class="r">Amount</th></tr></thead>
+  <tbody>${rows}</tbody>
 </table>
-<div class="footer">
-  <p><strong>Enjoy your snacks! See you again at Cinépolis.</strong></p>
-  <p>GSTIN: ${currentOrder.gstin} | HSN: ${currentOrder.hsn} | SAC: ${currentOrder.sac}</p>
-  <p>FSSAI: ${currentOrder.fssai}</p>
-  <p style="margin-top:8px;">Powered by SmartBill</p>
+<div class="totals">
+  <div><span>Subtotal (excl. GST)</span><span>${fmt(receipt.subtotal)}</span></div>
+  <div><span>CGST 9%</span><span>${fmt(receipt.cgst)}</span></div>
+  <div><span>SGST 9%</span><span>${fmt(receipt.sgst)}</span></div>
+  <div class="grand"><span>Total paid</span><span>${fmt(receipt.total)}</span></div>
+</div>
+<p class="words">Amount in words: ${inrWords(receipt.total)}</p>
+<div class="foot">
+  <strong>Handcrafted with love, made for the occasion.</strong><br>
+  shopanaar.com · @worldofanaar · customercare@anaar.in · ${BRAND.phoneLabel}<br>
+  Powered by RDEP Smart Receipts
 </div>
 </body>
-</html>
-  `
-    const blob = new Blob([receiptContent], { type: "text/html" })
+</html>`
+
+    const blob = new Blob([html], { type: "text/html" })
     const url = URL.createObjectURL(blob)
-    const link = document.createElement("a")
-    link.href = url
-    link.download = `Cinepolis_FnB_Bill_${currentOrder.bookingId}.html`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `Anaar_Receipt_${receipt.id}.html`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
 
-  const handleDownloadApp = () => window.open(APP_LINK, "_blank")
-  const handleNeedHelp = () => window.open("https://wa.me/+919620921294", "_blank")
-  const handleEmail = () => window.open("mailto:sagar.p@proenx.com", "_blank")
-  const handleSocialLink = (url: string) => window.open(url, "_blank")
+  const openLink = (url: string) => window.open(url, "_blank", "noopener,noreferrer")
+
+  const historyList = (["current", "hist1", "hist2"] as const).map((id) => ({
+    id,
+    date: RECEIPTS[id].date,
+    pieces: RECEIPTS[id].items.reduce((s, i) => s + i.qty, 0),
+    amount: RECEIPTS[id].total,
+  }))
+
+  const promoSlides = [
+    {
+      eyebrow: "Personalise",
+      title: "Make your pair unmistakably yours",
+      body: "Initials, charms and custom embellishments, crafted by hand.",
+      cta: "Personalise & Customise",
+      url: "https://shopanaar.com/pages/personalise-customise",
+    },
+    {
+      eyebrow: "Gift of Love",
+      title: "Not sure of her size? Gift an e-card",
+      body: "Beautiful themed e-gift cards for every celebration.",
+      cta: "Send a Gift Card",
+      url: "https://shopanaar.com/pages/gift-page",
+    },
+    {
+      eyebrow: "Anaar Edit",
+      title: "15% off on orders above ₹15,000",
+      body: "Use the code below on shopanaar.com.",
+      cta: "ANAAR15",
+      code: "ANAAR15",
+      url: "https://shopanaar.com/collections/new-in",
+    },
+  ]
+
+  const feedbackTags =
+    rating >= 4
+      ? ["Boutique experience", "Craftsmanship", "Comfort", "Design & detailing", "Packaging", "Styling help"]
+      : ["Fit & sizing", "Comfort", "Waiting time", "Product availability", "Checkout", "Styling help"]
 
   return (
-    <div className="min-h-screen bg-[#F6F2FB] flex justify-center">
+    <div className={`${poppins.variable} ${poppins.className} min-h-screen flex justify-center bg-[#F1E9DB]`}>
       <div
         id="receipt-root"
         ref={receiptContainerRef}
-        className="w-full max-w-md mx-auto bg-transparent relative overflow-hidden font-poppins"
+        className="relative mx-auto w-full max-w-md overflow-hidden bg-[#FAF6EE] shadow-xl"
+        style={{ fontFamily: "var(--font-poppins)" }}
       >
-        <div className="flex flex-col w-full gap-3 pb-4 pt-4">
+        <div className="flex w-full flex-col gap-4 pb-6 pt-4">
+          {/* ============ HERO ============ */}
+          <section className="relative mx-3 overflow-hidden rounded-[32px] text-[#FAF6EE]" style={{ background: HERO_BG }}>
+            <JaliPattern />
+            <div className="absolute -top-20 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-[#C9A24B]/20 blur-3xl" />
+            <div className="absolute inset-[10px] rounded-[24px] border border-[#C9A24B]/35" />
 
-          {/* Header — straight bottom edge, same width as other cards */}
-          <div className="mx-3 bg-gradient-to-br from-[#3D1B78] via-[#5B2A9E] to-[#7742D8] px-5 pt-7 pb-7 text-center text-white rounded-2xl">
-            <img
-              src="/images/design-mode/cinepolis.png"
-              alt="Cinépolis"
-              className="h-8 w-auto mx-auto mb-2 brightness-0 invert"
-            />
-            <div className="inline-flex items-center gap-1.5 bg-white/15 rounded-full px-3 py-1">
-              <ShoppingBag className="h-3 w-3 text-[#F9B233]" />
-              <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-[#F9B233]">Snack Bar Order</span>
-            </div>
-            <div className="text-sm font-medium opacity-90 mt-1.5">{currentOrder.cinema}</div>
-          </div>
+            <div className="relative z-10 px-7 pb-8 pt-9 text-center">
+              {LOGO_SRC ? (
+                <img src={LOGO_SRC} alt="Anaar" className="mx-auto h-9 w-auto" />
+              ) : (
+                <GoldText className="block pl-[0.5em] text-[30px] font-light tracking-[0.5em]">ANAAR</GoldText>
+              )}
+              <div className="mt-2 text-[9.5px] font-medium uppercase tracking-[0.34em] text-[#E7CF8E]/80">
+                Handcrafted for every celebration
+              </div>
 
-          {/* Receipt paper block — zigzag torn edges, monospace ticket styling */}
-          <div className="mx-3 relative z-10">
-            <ZigzagEdge />
-            <div className="bg-white px-5 pt-5 pb-2 shadow-md">
-
-              {/* Small classic QR + booking meta, side by side */}
-              <div className="flex items-start gap-4 mb-4">
-                <div className="shrink-0 text-center">
-                  <div className="p-1.5 border border-[#F9B233] rounded-lg inline-block">
-                    <Image
-                      src="/images/design-mode/800px-QR_code_for_mobile_English_Wikipedia.svg.png"
-                      alt="QR Code"
-                      width={72}
-                      height={72}
-                    />
-                  </div>
-                  <div className="text-[8px] font-bold tracking-wider uppercase text-[#7742D8] mt-1">Scan to Enter</div>
-                </div>
-                <div className="font-mono text-xs space-y-1.5 text-[#4A3D63] pt-1">
-                  <div className="flex gap-2"><span className="text-gray-400 w-20">Booking ID</span><span className="font-semibold">{currentOrder.bookingId}</span></div>
-                  <div className="flex gap-2"><span className="text-gray-400 w-20">Booking No.</span><span className="font-semibold">{currentOrder.bookingNo}</span></div>
-                  <div className="flex gap-2"><span className="text-gray-400 w-20">Date</span><span className="font-semibold">{currentOrder.orderDate}</span></div>
-                  <div className="flex gap-2"><span className="text-gray-400 w-20">Time</span><span className="font-semibold">{currentOrder.orderTime}</span></div>
+              {/* arch */}
+              <div className="mx-auto mt-7 h-[178px] w-[142px] rounded-t-[999px] rounded-b-[18px] border border-[#C9A24B]/70 p-[5px]">
+                <div
+                  className="relative flex h-full w-full flex-col items-center justify-center rounded-t-[999px] rounded-b-[13px]"
+                  style={{ background: "linear-gradient(180deg,#4A1820 0%,#2E0E14 100%)" }}
+                >
+                  <Pomegranate size={92} />
+                  <div className="mt-1 text-[8.5px] font-medium uppercase tracking-[0.34em] text-[#E7CF8E]">Thank you</div>
                 </div>
               </div>
 
-              <div className="h-px bg-[repeating-linear-gradient(90deg,#DCC7F5_0px,#DCC7F5_4px,transparent_4px,transparent_8px)] mb-4" />
+              <h1 className="mt-6 text-[26px] font-light leading-tight tracking-[0.01em]">
+                Congratulations, <span className="font-medium">{customerName}</span>
+              </h1>
+              <p className="mx-auto mt-2 max-w-[260px] text-[13px] leading-relaxed text-[#FAF6EE]/70">
+                Your Anaar pieces are ready to walk into every beautiful moment.
+              </p>
 
-              {/* Items — dot leader style */}
-              <div className="text-[10px] font-bold tracking-[0.15em] uppercase text-[#7742D8] mb-3">Items Ordered</div>
-              <div className="space-y-2.5 mb-4">
-                {currentOrder.items.map((item, idx) => (
-                  <div key={idx}>
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-xs font-semibold text-gray-900 whitespace-nowrap">{item.name}</span>
-                      <span className="flex-1 border-b border-dotted border-gray-300 translate-y-[-3px]" />
-                      <span className="text-xs font-mono font-bold text-gray-900 whitespace-nowrap">{fmt(item.price)}</span>
+              {/* amount */}
+              <div className="relative mt-7 rounded-[22px] border border-[#C9A24B]/45 bg-black/15 px-5 py-5 backdrop-blur-sm">
+                <div className="flex items-center justify-between gap-3 text-left">
+                  <div>
+                    <div className="text-[10px] font-medium uppercase tracking-[0.3em] text-[#E7CF8E]/80">Amount paid</div>
+                    <GoldText className="mt-1.5 block text-[40px] font-light leading-none tracking-tight">
+                      {fmt0(receipt.total)}
+                    </GoldText>
+                    <div className="mt-2.5 text-[11.5px] text-[#FAF6EE]/55">
+                      Inclusive of GST · {itemCount} {itemCount === 1 ? "piece" : "pieces"}
                     </div>
-                    <div className="text-[10px] text-gray-400 font-mono">Qty x{item.qty}</div>
+                  </div>
+                  <PaidSeal />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ============ RECEIPT DETAILS (invitation card) ============ */}
+          <Card className="p-2">
+            <div className="rounded-[22px] border border-[#C9A24B]/45 p-4">
+              <div className="flex items-start gap-4">
+                <div className="shrink-0 text-center">
+                  <div className="rounded-2xl border border-[#E9DFCF] bg-white p-2">
+                    <Image
+                      src="/images/design-mode/800px-QR_code_for_mobile_English_Wikipedia.svg.png"
+                      alt="Receipt QR code"
+                      width={64}
+                      height={64}
+                    />
+                  </div>
+                  <div className="mt-1.5 text-[8px] font-medium uppercase tracking-[0.2em] text-[#B08A35]">At the boutique</div>
+                </div>
+
+                <dl className="min-w-0 flex-1 space-y-2.5 text-[12px]">
+                  {[
+                    ["Receipt no.", receipt.id],
+                    ["Date", `${receipt.date} · ${receipt.time}`],
+                    ["Boutique", STORE.name],
+                    ["Styled by", receipt.associate],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex items-baseline justify-between gap-3">
+                      <dt className="text-[10px] uppercase tracking-[0.18em] text-[#8A7B72]">{k}</dt>
+                      <dd className="truncate text-right font-medium text-[#2A1A1A]">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </div>
+          </Card>
+
+          {/* ============ YOUR PIECES ============ */}
+          <Card className="p-5">
+            <SectionTitle
+              eyebrow="Your order"
+              title="Your Pieces"
+              right={
+                <span className="rounded-full border border-[#C9A24B]/60 bg-[#FAF6EE] px-3 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A6A22]">
+                  {itemCount} {itemCount === 1 ? "item" : "items"}
+                </span>
+              }
+            />
+
+            <div className="space-y-3">
+              {receipt.items.map((item) => {
+                const open = expandedProducts.includes(item.id)
+                const fbOpen = expandedItemFeedback.includes(item.id)
+                return (
+                  <div key={item.id} className="rounded-[22px] border border-[#EDE3D2] bg-[#FBF7EE] p-3.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleProduct(item.id)}
+                      aria-expanded={open}
+                      className="flex w-full items-center gap-3 text-left"
+                    >
+                      <div
+                        className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-2xl border border-[#C9A24B]/60"
+                        style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}
+                      >
+                        <GoldText className="text-[22px] font-light">{item.name.charAt(0)}</GoldText>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[14px] font-medium leading-snug text-[#2A1A1A]">{item.name}</div>
+                        <div className="mt-1 text-[11px] text-[#8A7B72]">
+                          {item.category} · Size {item.size}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-[10.5px] text-[#8A7B72]">Qty {item.qty}</div>
+                        <div className="mt-0.5 text-[14px] font-semibold text-[#903535]">{fmt0(item.line)}</div>
+                      </div>
+                      <ChevronRight className={`h-4 w-4 shrink-0 text-[#B08A35] transition-transform duration-200 ${open ? "rotate-90" : ""}`} />
+                    </button>
+
+                    {open && (
+                      <div className="mt-3.5 border-t border-dashed border-[#D9C79B] pt-3.5">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-[11.5px]">
+                          {[
+                            ["SKU", item.sku],
+                            ["HSN", item.hsn],
+                            ["Taxable value", fmt(item.base)],
+                            ["GST @ 18%", fmt(item.gst)],
+                          ].map(([k, v]) => (
+                            <div key={k}>
+                              <div className="text-[9.5px] uppercase tracking-[0.18em] text-[#8A7B72]">{k}</div>
+                              <div className="mt-0.5 font-medium text-[#2A1A1A]">{v}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3.5 flex items-center gap-2 rounded-xl bg-[#F3EAD3]/70 px-3 py-2 text-[11px] text-[#6B5420]">
+                          <Hand className="h-3.5 w-3.5 shrink-0" />
+                          Handcrafted by Anaar artisans, one pair at a time.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* per-piece feedback */}
+                    <div className="mt-3">
+                      {submittedItemFeedback[item.id] ? (
+                        <div className="flex items-center justify-between text-[11.5px]">
+                          <span className="flex items-center gap-1.5 font-medium text-[#5C7A3A]">
+                            <Check className="h-3.5 w-3.5" /> Thanks for rating this piece
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSubmittedItemFeedback((p) => ({ ...p, [item.id]: false }))
+                              toggleItemFeedback(item.id)
+                            }}
+                            className="font-medium text-[#903535]"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => toggleItemFeedback(item.id)} className="text-[11.5px] font-medium text-[#903535]">
+                          {fbOpen ? "Hide feedback" : "Rate this piece"}
+                        </button>
+                      )}
+                    </div>
+
+                    {fbOpen && (
+                      <div className="mt-3 rounded-[18px] border border-[#EDE3D2] bg-white p-4">
+                        <div className="mb-3 flex justify-center gap-2">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <button key={s} type="button" aria-label={`${s} star`} onClick={() => setItemRating(item.id, s)}>
+                              <Star
+                                className={`h-5 w-5 ${s <= (itemFeedback[item.id]?.rating || 0) ? "fill-[#C9A24B] text-[#C9A24B]" : "text-[#DCCFB6]"}`}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {["Comfort", "Fit", "Craftsmanship", "Embellishment", "Style"].map((tag) => {
+                            const active = itemFeedback[item.id]?.tags?.includes(tag)
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => toggleItemTag(item.id, tag)}
+                                className={`rounded-full border px-3 py-1.5 text-[11px] transition ${
+                                  active ? "border-[#903535] bg-[#903535] text-white" : "border-[#E4D8C0] bg-[#FBF7EE] text-[#6B5A52]"
+                                }`}
+                              >
+                                {tag}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => submitItemFeedback(item.id)}
+                          disabled={!itemFeedback[item.id]?.rating}
+                          className="mt-4 h-10 w-full rounded-xl bg-[#903535] text-[12px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+                        >
+                          Submit
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* totals */}
+            <div className="mt-6">
+              <GoldRule />
+              <div className="mt-5 space-y-2.5 text-[12.5px]">
+                {[
+                  ["Subtotal (excl. GST)", fmt(receipt.subtotal)],
+                  ["CGST @ 9%", fmt(receipt.cgst)],
+                  ["SGST @ 9%", fmt(receipt.sgst)],
+                ].map(([k, v]) => (
+                  <div key={k} className="flex items-baseline gap-2">
+                    <span className="text-[#6B5A52]">{k}</span>
+                    <span className="flex-1 translate-y-[-3px] border-b border-dotted border-[#D9C79B]" />
+                    <span className="font-medium text-[#2A1A1A]">{v}</span>
                   </div>
                 ))}
               </div>
-
-              <div className="h-px bg-[repeating-linear-gradient(90deg,#DCC7F5_0px,#DCC7F5_4px,transparent_4px,transparent_8px)] mb-4" />
-
-              {/* Totals — labels left, amounts right, one consistent column */}
-              <div className="font-mono text-xs space-y-1.5 mb-3">
-                <div className="flex justify-between text-gray-500"><span>F&amp;B Price</span><span>{fmt(currentOrder.fbPrice)}</span></div>
-                <div className="flex justify-between text-gray-500"><span>CGST (2.5%)</span><span>{fmt(currentOrder.cgst)}</span></div>
-                <div className="flex justify-between text-gray-500 pb-1.5 border-b border-dashed border-gray-300"><span>SGST (2.5%)</span><span>{fmt(currentOrder.sgst)}</span></div>
+              <div className="mt-4 flex items-end justify-between rounded-2xl border border-[#C9A24B]/50 bg-[#FBF3DF] px-4 py-3.5">
+                <span className="text-[11px] font-medium uppercase tracking-[0.24em] text-[#7A5A14]">Total paid</span>
+                <span className="text-[22px] font-semibold leading-none text-[#903535]">{fmt(receipt.total)}</span>
               </div>
+              <p className="mt-3 text-center text-[10.5px] leading-relaxed text-[#8A7B72]">{inrWords(receipt.total)}</p>
+            </div>
 
-              {/* Total paid — label left, stamp directly beside amount on the right */}
-              <div className="flex items-center justify-between pb-1">
-                <span className="text-sm font-bold text-gray-900">TOTAL PAID</span>
-                <div className="flex items-center gap-2">
-                  <PaidStamp />
-                  <span className="text-lg font-bold text-[#3D1B78]">{fmt(currentOrder.totalOrderValue)}</span>
+            {/* payment */}
+            <div className="mt-5 flex items-center justify-between rounded-[20px] border border-[#EDE3D2] bg-[#FBF7EE] p-3.5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                  <BadgeCheck className="h-5 w-5 text-[#E7CF8E]" />
+                </div>
+                <div>
+                  <div className="text-[13px] font-medium text-[#2A1A1A]">Payment received</div>
+                  <div className="mt-0.5 text-[11px] text-[#8A7B72]">{receipt.payment}</div>
                 </div>
               </div>
+              <div className="text-[13px] font-semibold text-[#903535]">{fmt0(receipt.total)}</div>
             </div>
-            <ZigzagEdge flip />
-          </div>
+          </Card>
 
-          {/* Pickup instructions — straight, not rotated */}
-          <div className="mx-3 flex justify-center py-1">
-            <div className="inline-flex items-center gap-2 bg-[#F4EEFD] border-2 border-dashed border-[#7742D8] rounded-lg px-4 py-2">
-              <Clock className="h-4 w-4 text-[#3D1B78] shrink-0" />
-              <p className="text-[11px] text-[#3D1B78] font-semibold leading-relaxed text-left">
-                Check in via the app on arrival — we'll start preparing your order.
-              </p>
+          {/* ============ RECEIPT ACTIONS ============ */}
+          <Card className="overflow-hidden">
+            <div className="grid grid-cols-3 divide-x divide-[#EDE3D2]">
+              {[
+                { label: "Orders", Icon: History, onClick: () => setShowHistory(true) },
+                { label: "Email", Icon: Mail, onClick: handleEmailReceipt },
+                { label: "Invoice", Icon: Download, onClick: handleDownloadReceipt },
+              ].map(({ label, Icon, onClick }) => (
+                <button key={label} type="button" onClick={onClick} className="flex flex-col items-center gap-1.5 py-4 transition active:bg-[#FBF3DF]">
+                  <Icon className="h-5 w-5 text-[#903535]" />
+                  <span className="text-[11px] font-medium text-[#4A3A34]">{label}</span>
+                </button>
+              ))}
             </div>
-          </div>
+          </Card>
 
-          {/* Promo Banners — 1600x485 aspect ratio */}
-          <div className="mx-3 relative rounded-xl overflow-hidden border border-gray-200 shadow-md">
+          {/* ============ HANDCRAFTED PROMISE ============ */}
+          <Card className="p-5">
+            <SectionTitle eyebrow="The Anaar promise" title="Crafted by hand, kept with care" />
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                { Icon: Hand, t: "Handcrafted", s: "By skilled artisans" },
+                { Icon: Sparkles, t: "Embellished", s: "Zari, zardozi & more" },
+                { Icon: Package, t: "Made to last", s: "Comfort for hours" },
+              ].map(({ Icon, t, s }) => (
+                <div key={t} className="rounded-2xl border border-[#EDE3D2] bg-[#FBF7EE] px-2 py-3.5 text-center">
+                  <Icon className="mx-auto h-5 w-5 text-[#B08A35]" />
+                  <div className="mt-2 text-[11.5px] font-medium text-[#2A1A1A]">{t}</div>
+                  <div className="mt-0.5 text-[9.5px] leading-snug text-[#8A7B72]">{s}</div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCare(!showCare)}
+              aria-expanded={showCare}
+              className="mt-4 flex w-full items-center justify-between rounded-2xl border border-[#C9A24B]/50 bg-[#FBF3DF] px-4 py-3 text-left"
+            >
+              <span className="text-[12px] font-medium text-[#6B4F10]">Care guide for your pieces</span>
+              <ChevronRight className={`h-4 w-4 text-[#B08A35] transition-transform ${showCare ? "rotate-90" : ""}`} />
+            </button>
+            {showCare && (
+              <ul className="mt-3 space-y-2.5 px-1">
+                {CARE_TIPS.map((tip) => (
+                  <li key={tip} className="flex gap-2.5 text-[12px] leading-relaxed text-[#5B4B45]">
+                    <Diamond className="mt-[7px] shrink-0" />
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <a href={BRAND.returnPolicy} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-1.5 text-[11.5px] font-medium text-[#903535]">
+              <FileText className="h-3.5 w-3.5" /> Return &amp; exchange policy
+            </a>
+          </Card>
+
+          {/* ============ PROMO CAROUSEL ============ */}
+          <Card className="relative overflow-hidden">
             <Carousel className="w-full" setApi={setPromoApi} opts={{ loop: true }}>
               <CarouselContent>
-                <CarouselItem>
-                  <div className="relative w-full aspect-[1600/485] bg-[#F4EEFD]">
-                    <a href="https://www.instagram.com/cinepolisindia/?hl=en" target="_blank" rel="noopener noreferrer" className="absolute inset-0">
-                      <Image src="/images/design-mode/cinepolis-food-banner-1.png" alt="Now at Cinépolis Snack Bar" fill className="object-cover" priority />
-                    </a>
-                  </div>
-                </CarouselItem>
-                <CarouselItem>
-                  <div className="relative w-full aspect-[1600/485] bg-[#F4EEFD]">
-                    <a href="https://www.instagram.com/cinepolisindia/?hl=en" target="_blank" rel="noopener noreferrer" className="absolute inset-0">
-                      <Image src="/images/design-mode/cinepolis-gift-card-banner-2.png" alt="Cinépolis Gift Cards" fill className="object-cover" />
-                    </a>
-                  </div>
-                </CarouselItem>
+                {promoSlides.map((s) => (
+                  <CarouselItem key={s.eyebrow}>
+                    <div className="relative px-6 pb-12 pt-7 text-center text-[#FAF6EE]" style={{ background: HERO_BG }}>
+                      <JaliPattern />
+                      <div className="relative z-10">
+                        <div className="text-[10px] font-medium uppercase tracking-[0.32em] text-[#E7CF8E]">{s.eyebrow}</div>
+                        <div className="mx-auto mt-2.5 max-w-[250px] text-[19px] font-light leading-snug">{s.title}</div>
+                        <div className="mx-auto mt-2 max-w-[250px] text-[12px] leading-relaxed text-[#FAF6EE]/65">{s.body}</div>
+                        {s.code ? (
+                          <button
+                            type="button"
+                            onClick={() => copyCode(s.code!)}
+                            className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-dashed border-[#E7CF8E] px-5 py-2 text-[12px] font-semibold tracking-[0.2em] text-[#E7CF8E]"
+                          >
+                            {s.cta} <Copy className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openLink(s.url)}
+                            className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-[12px] font-semibold text-[#3A1218]"
+                            style={{ backgroundImage: GOLD_FOIL }}
+                          >
+                            {s.cta} <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </CarouselItem>
+                ))}
               </CarouselContent>
-              <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10">
-                {[0, 1].map((index) => (
-                  <button key={index} onClick={() => promoApi?.scrollTo(index)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${currentSlide === index ? "w-5 bg-[#F9B233]" : "w-1.5 bg-white/70"}`} />
+              <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-1.5">
+                {promoSlides.map((s, i) => (
+                  <button
+                    key={s.eyebrow}
+                    type="button"
+                    aria-label={`Go to slide ${i + 1}`}
+                    onClick={() => promoApi?.scrollTo(i)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${promoSlide === i ? "w-5 bg-[#E7CF8E]" : "w-1.5 bg-white/40"}`}
+                  />
                 ))}
               </div>
             </Carousel>
-          </div>
+          </Card>
 
-          {/* Rate Experience */}
-          <div className="mx-3 bg-white rounded-xl border border-gray-200 shadow-md p-4">
-            {feedbackSubmitted ? (
-              <div className="text-center py-6 bg-green-50 rounded-xl border border-green-100">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <CheckCircle2 className="w-6 h-6 text-green-600" />
+          {/* ============ SAVE THE DATE / ANAAR TRIBE ============ */}
+          <Card className="p-5">
+            {tribeSubmitted ? (
+              <div className="py-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                  <Check className="h-6 w-6 text-[#E7CF8E]" />
                 </div>
-                <div className="text-sm font-semibold text-gray-900 mb-1">Thanks for your feedback!</div>
-                <div className="text-xs text-gray-500">Your input helps us improve every Cinépolis order.</div>
+                <div className="mt-4 text-[18px] font-light text-[#2A1A1A]">Welcome to the Tribe, {tribe.name.split(" ")[0]}</div>
+                <p className="mx-auto mt-1.5 max-w-[250px] text-[12px] leading-relaxed text-[#8A7B72]">
+                  We&apos;ll keep your date in mind and send styling inspiration your way. Here&apos;s a little welcome gift.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => copyCode("ANAARTRIBE10")}
+                  className="mx-auto mt-4 flex items-center gap-2.5 rounded-2xl border border-dashed border-[#C9A24B] bg-[#FBF3DF] px-5 py-3"
+                >
+                  <Gift className="h-4 w-4 text-[#903535]" />
+                  <span className="text-[14px] font-semibold tracking-[0.2em] text-[#903535]">ANAARTRIBE10</span>
+                  <Copy className="h-3.5 w-3.5 text-[#B08A35]" />
+                </button>
+                <div className="mt-2 text-[10.5px] text-[#8A7B72]">10% off on shopanaar.com</div>
               </div>
             ) : (
-              <div className="space-y-4">
-                <h3 className="text-base font-semibold text-gray-900 text-center">How was your order?</h3>
+              <>
+                <SectionTitle eyebrow="Save the date" title="Join the Anaar Tribe" />
+                <p className="-mt-2 mb-4 text-[12px] leading-relaxed text-[#8A7B72]">
+                  Tell us about your celebration and unlock a welcome reward, fresh designs and styling inspiration.
+                </p>
 
+                <div className="space-y-3">
+                  {[
+                    { key: "name", label: "Full name", type: "text", ph: "e.g. Ananya Rao" },
+                    { key: "mobile", label: "Mobile number", type: "tel", ph: "e.g. 98XXXXXXXX" },
+                    { key: "email", label: "Email address", type: "email", ph: "name@email.com" },
+                  ].map((f) => (
+                    <label key={f.key} className="block">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A7B72]">{f.label}</span>
+                      <input
+                        type={f.type}
+                        placeholder={f.ph}
+                        value={tribe[f.key as "name" | "mobile" | "email"]}
+                        onChange={(e) => setTribe((p) => ({ ...p, [f.key]: e.target.value }))}
+                        className="mt-1 w-full rounded-xl border border-[#E4D8C0] bg-white px-3.5 py-2.5 text-[13px] text-[#2A1A1A] outline-none placeholder:text-[#C2B6A6] focus:border-[#903535] focus:ring-1 focus:ring-[#903535]"
+                      />
+                    </label>
+                  ))}
+
+                  <div>
+                    <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A7B72]">Your occasion</span>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {OCCASIONS.map((o) => (
+                        <button
+                          key={o.label}
+                          type="button"
+                          onClick={() => setTribe((p) => ({ ...p, occasion: p.occasion === o.label ? "" : o.label }))}
+                          className={`rounded-full border px-3 py-1.5 text-[11px] transition ${
+                            tribe.occasion === o.label ? "border-[#903535] bg-[#903535] text-white" : "border-[#E4D8C0] bg-[#FBF7EE] text-[#6B5A52]"
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <label className="block">
+                    <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A7B72]">
+                      <CalendarDays className="h-3 w-3" /> Date of celebration
+                    </span>
+                    <input
+                      type="date"
+                      value={tribe.date}
+                      onChange={(e) => setTribe((p) => ({ ...p, date: e.target.value }))}
+                      className="mt-1 w-full rounded-xl border border-[#E4D8C0] bg-white px-3.5 py-2.5 text-[13px] text-[#2A1A1A] outline-none focus:border-[#903535] focus:ring-1 focus:ring-[#903535]"
+                    />
+                  </label>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTribeSubmit}
+                  className="mt-5 h-11 w-full rounded-xl text-[12.5px] font-semibold text-[#3A1218] transition active:scale-[0.98]"
+                  style={{ backgroundImage: GOLD_FOIL }}
+                >
+                  Join &amp; unlock my reward
+                </button>
+                <p className="mt-2.5 text-center text-[10px] text-[#A39688]">Free to join. Unsubscribe anytime.</p>
+              </>
+            )}
+          </Card>
+
+          {/* ============ COMPLETE THE LOOK ============ */}
+          <Card className="overflow-hidden py-5">
+            <div className="px-5">
+              <SectionTitle eyebrow="Finishing touches" title="Complete the Look" />
+            </div>
+            <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+              <CarouselContent className="ml-5 mr-2">
+                {COMPLETE_THE_LOOK.map(({ name, kind, price, url, Icon }) => (
+                  <CarouselItem key={name} className="basis-[46%] pl-0 pr-3">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-[20px] border border-[#EDE3D2] bg-[#FBF7EE]">
+                      <div className="relative flex h-[104px] items-center justify-center" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                        <JaliPattern />
+                        <Icon className="relative h-8 w-8 text-[#E7CF8E]" />
+                      </div>
+                      <div className="p-3">
+                        <div className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#B08A35]">{kind}</div>
+                        <div className="mt-1 truncate text-[12.5px] font-medium text-[#2A1A1A]">{name}</div>
+                        <div className="mt-1 flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-[#903535]">{fmt0(price)}</span>
+                          <ChevronRight className="h-3.5 w-3.5 text-[#B08A35]" />
+                        </div>
+                      </div>
+                    </a>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+          </Card>
+
+          {/* ============ SHOP BY OCCASION ============ */}
+          <Card className="p-5">
+            <SectionTitle eyebrow="For every function" title="Shop by Occasion" />
+            <div className="grid grid-cols-2 gap-2.5">
+              {OCCASIONS.map((o, i) => (
+                <a
+                  key={o.label}
+                  href={o.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative overflow-hidden rounded-2xl border border-[#E4D8C0] bg-[#FBF7EE] px-3.5 py-3.5"
+                >
+                  <div className="text-[9px] font-medium tracking-[0.3em] text-[#B08A35]">{String(i + 1).padStart(2, "0")}</div>
+                  <div className="mt-1.5 text-[12.5px] font-medium leading-snug text-[#2A1A1A]">{o.label}</div>
+                  <div className="mt-2 flex items-center gap-1 text-[10.5px] font-medium text-[#903535]">
+                    Explore <ChevronRight className="h-3 w-3" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </Card>
+
+          {/* ============ RATE EXPERIENCE ============ */}
+          <Card className="p-5">
+            {feedbackSubmitted ? (
+              <div className="py-4 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                  <Check className="h-6 w-6 text-[#E7CF8E]" />
+                </div>
+                <div className="mt-4 text-[18px] font-light text-[#2A1A1A]">Thank you for sharing</div>
+                <p className="mx-auto mt-1.5 max-w-[250px] text-[12px] leading-relaxed text-[#8A7B72]">
+                  Your words help us craft a more beautiful Anaar experience.
+                </p>
+                {rating >= 4 && (
+                  <button
+                    type="button"
+                    onClick={() => openLink(BRAND.instagram)}
+                    className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-[#C9A24B]/60 bg-[#FBF3DF] px-5 py-2.5 text-[12px] font-medium text-[#6B4F10]"
+                  >
+                    <Instagram className="h-4 w-4" /> Tag us @worldofanaar
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <SectionTitle eyebrow="Your voice" title="How was your Anaar visit?" />
                 <div className="flex justify-center gap-3 py-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
+                  {[1, 2, 3, 4, 5].map((s) => (
                     <button
-                      key={star}
+                      key={s}
+                      type="button"
+                      aria-label={`${s} star`}
                       onClick={() => {
-                        setRating(star)
+                        setRating(s)
                         setSelectedTags([])
                       }}
                       className="transition-transform active:scale-90"
                     >
-                      <Star className={`h-8 w-8 transition-colors ${star <= rating ? "fill-[#F9B233] text-[#F9B233]" : "text-gray-300"}`} />
+                      <Star className={`h-9 w-9 transition-colors ${s <= rating ? "fill-[#C9A24B] text-[#C9A24B]" : "text-[#DCCFB6]"}`} />
                     </button>
                   ))}
                 </div>
 
                 {rating > 0 && (
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide text-center">Tell us more</div>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {(rating >= 4
-                        ? ["Fresh & tasty", "Quick pickup", "Good portion size", "Friendly staff"]
-                        : ["Order was cold", "Long wait time", "Wrong item", "Staff behaviour"]
-                      ).map((item) => (
-                        <button key={item}
-                          onClick={() => setSelectedTags((prev) => prev.includes(item) ? prev.filter((tag) => tag !== item) : [...prev, item])}
-                          className={`text-[11px] px-3 py-1.5 rounded-full border transition ${selectedTags.includes(item) ? "bg-[#3D1B78] text-white border-[#3D1B78]" : "border-gray-200 bg-gray-50"}`}>
-                          {item}
+                  <div className="mt-4">
+                    <div className="mb-2.5 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-[#8A7B72]">Tell us more</div>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {feedbackTags.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setSelectedTags((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]))}
+                          className={`rounded-full border px-3 py-1.5 text-[11px] transition ${
+                            selectedTags.includes(t) ? "border-[#903535] bg-[#903535] text-white" : "border-[#E4D8C0] bg-[#FBF7EE] text-[#6B5A52]"
+                          }`}
+                        >
+                          {t}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <textarea rows={2} placeholder="Additional feedback (optional)"
-                  className="w-full p-3 text-xs border border-gray-200 rounded-xl focus:ring-1 focus:ring-[#7742D8] focus:border-[#7742D8] outline-none resize-none"
-                  value={feedbackText} onChange={(e) => setFeedbackText(e.target.value)} />
-
-                <button className="w-full bg-[#F9B233] hover:bg-[#e8a422] text-black h-10 text-xs font-semibold rounded-xl transition active:scale-[0.98]"
-                  onClick={handleFeedbackSubmit} disabled={!rating}>
-                  Submit Feedback
+                <textarea
+                  rows={3}
+                  placeholder="Anything else you'd like us to know? (optional)"
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  className="mt-4 w-full resize-none rounded-2xl border border-[#E4D8C0] bg-white p-3.5 text-[12.5px] text-[#2A1A1A] outline-none placeholder:text-[#C2B6A6] focus:border-[#903535] focus:ring-1 focus:ring-[#903535]"
+                />
+                <button
+                  type="button"
+                  onClick={handleFeedbackSubmit}
+                  disabled={!rating}
+                  className="mt-3 h-11 w-full rounded-xl bg-[#903535] text-[12.5px] font-semibold text-white transition active:scale-[0.98] disabled:opacity-40"
+                >
+                  Submit feedback
                 </button>
+              </>
+            )}
+          </Card>
+
+          {/* ============ CONCIERGE ============ */}
+          <Card className="p-5">
+            <SectionTitle eyebrow="We're here" title="Anaar Concierge" />
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                { label: "Chat", Icon: MessageCircle, onClick: () => openLink(BRAND.whatsapp) },
+                { label: "Call", Icon: Phone, onClick: () => window.open(BRAND.phone) },
+                { label: "Email", Icon: Mail, onClick: () => window.open(BRAND.email) },
+              ].map(({ label, Icon, onClick }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={onClick}
+                  className="flex flex-col items-center gap-1.5 rounded-2xl border border-[#E4D8C0] bg-[#FBF7EE] py-3.5 transition active:scale-[0.97]"
+                >
+                  <Icon className="h-5 w-5 text-[#903535]" />
+                  <span className="text-[11px] font-medium text-[#4A3A34]">{label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-center gap-1.5 text-[10.5px] text-[#8A7B72]">
+              <Clock className="h-3 w-3" /> 10 am to 6 pm · {BRAND.phoneLabel}
+            </div>
+          </Card>
+
+          {/* ============ BOUTIQUE & SOCIAL ============ */}
+          <Card className="p-5">
+            <div className="flex justify-center gap-6">
+              {[
+                { label: "Instagram", Icon: Instagram, url: BRAND.instagram },
+                { label: "Facebook", Icon: Facebook, url: BRAND.facebook },
+                { label: "Website", Icon: ExternalLink, url: BRAND.site },
+              ].map(({ label, Icon, url }) => (
+                <button key={label} type="button" onClick={() => openLink(url)} className="flex flex-col items-center gap-1.5">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[#C9A24B]/70" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                    <Icon className="h-4 w-4 text-[#E7CF8E]" />
+                  </span>
+                  <span className="text-[10.5px] font-medium text-[#6B5A52]">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 rounded-2xl bg-[#FBF7EE] p-3.5 text-center">
+              <button type="button" onClick={() => setShowStore(!showStore)} aria-expanded={showStore} className="flex w-full items-center justify-center gap-1.5 text-[12px] font-medium text-[#2A1A1A]">
+                <MapPin className="h-3.5 w-3.5 text-[#903535]" /> {STORE.name} boutique details
+                <ChevronRight className={`h-3.5 w-3.5 text-[#B08A35] transition-transform ${showStore ? "rotate-90" : ""}`} />
+              </button>
+              {showStore && (
+                <div className="mt-3 space-y-1.5 text-[11px] text-[#6B5A52]">
+                  <p>GSTIN: {STORE.gstin}</p>
+                  <p>Styled by {receipt.associate}</p>
+                  <a href={STORE.locatorUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium text-[#903535]">
+                    Find a boutique near you <ChevronRight className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <button type="button" onClick={() => setShowTerms(!showTerms)} aria-expanded={showTerms} className="mt-3 h-8 w-full text-[11.5px] font-medium text-[#8A7B72]">
+              Terms &amp; conditions {showTerms ? "▲" : "▼"}
+            </button>
+            {showTerms && (
+              <div className="space-y-1.5 px-1 text-[11px] leading-relaxed text-[#8A7B72]">
+                <p>• Prices are inclusive of applicable GST.</p>
+                <p>• Offer codes are subject to the terms shown on shopanaar.com.</p>
+                <p>• Please retain this digital receipt as proof of purchase for exchanges and care.</p>
+                <p>
+                  • Full policies at{" "}
+                  <a className="font-medium text-[#903535] underline" href={BRAND.terms} target="_blank" rel="noopener noreferrer">
+                    shopanaar.com
+                  </a>
+                  .
+                </p>
               </div>
             )}
-          </div>
+          </Card>
 
-          {/* Download App CTA */}
-          <div className="mx-3 bg-gradient-to-br from-[#3D1B78] via-[#5B2A9E] to-[#7742D8] rounded-xl shadow-md p-5 text-white">
-            <div className="flex items-center">
-              <div className="bg-white/15 p-3 rounded-xl mr-4">
-                <Smartphone className="h-6 w-6 text-[#F9B233]" />
-              </div>
-              <div className="flex-1">
-                <div className="text-sm font-semibold">Get the Cinépolis App</div>
-                <div className="text-[11px] opacity-80">Pre-order snacks & skip the counter queue</div>
-              </div>
+          {/* ============ FOOTER ============ */}
+          <div className="px-6 text-center">
+            <GoldRule />
+            <div className="mt-4 text-[10.5px] text-[#A39688]">
+              Digital receipt powered by <span className="font-semibold text-[#8A7B72]">RDEP Smart Receipts</span>
             </div>
-            <button onClick={handleDownloadApp}
-              className="w-full mt-4 bg-[#F9B233] hover:bg-[#e8a422] text-black h-10 text-xs font-bold rounded-xl transition active:scale-[0.98] flex items-center justify-center gap-2">
-              <Download className="h-4 w-4" />
-              Download App
-            </button>
-          </div>
-
-          {/* Quick Actions — segmented tab bar */}
-          <div className="mx-3 bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
-            <div className="grid grid-cols-3">
-              <button onClick={() => setShowOrderHistory(true)}
-                className="flex flex-col items-center justify-center py-3.5 border-b-2 border-[#3D1B78] active:bg-gray-50">
-                <History className="h-5 w-5 text-[#3D1B78] mb-1" />
-                <span className="text-[11px] font-medium text-gray-700">Orders</span>
-              </button>
-              <button onClick={handleEmailReceipt}
-                className="flex flex-col items-center justify-center py-3.5 border-b-2 border-transparent border-l border-r border-gray-100 active:bg-gray-50">
-                <Mail className="h-5 w-5 text-gray-400 mb-1" />
-                <span className="text-[11px] font-medium text-gray-700">Email</span>
-              </button>
-              <button onClick={handleDownloadReceipt}
-                className="flex flex-col items-center justify-center py-3.5 border-b-2 border-transparent active:bg-gray-50">
-                <FileText className="h-5 w-5 text-gray-400 mb-1" />
-                <span className="text-[11px] font-medium text-gray-700">Bill</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Help row — Terms & Not your bill */}
-          <div className="mx-3 grid grid-cols-2 gap-3">
-            <button onClick={() => setShowTerms(!showTerms)}
-              className="bg-white border border-gray-200 rounded-full py-2.5 text-xs font-semibold text-gray-700 shadow-sm active:scale-[0.98]">
-              Terms & Conditions
-            </button>
-            <button onClick={handleNeedHelp}
-              className="bg-white border border-gray-200 rounded-full py-2.5 text-xs font-semibold text-gray-700 shadow-sm active:scale-[0.98] flex items-center justify-center gap-1.5">
-              <LifeBuoy className="h-3.5 w-3.5" />
-              Not your bill?
-            </button>
-          </div>
-
-          {showTerms && (
-            <div className="mx-3 bg-white rounded-xl border border-gray-200 shadow-md p-4 text-[11px] text-gray-500 space-y-1 font-medium">
-              <p>• F&B orders once placed cannot be exchanged or refunded, subject to cinema policy.</p>
-              <p>• Please collect your order at the counter within the show interval.</p>
-              <p>• Pickup is permitted only against a valid QR code / order ID.</p>
-              <p>• For support visit www.cinepolisindia.com.</p>
-            </div>
-          )}
-
-          {/* GST / HSN / SAC / FSSAI */}
-          <div className="mx-3 text-center text-[10px] text-gray-400 leading-relaxed font-mono">
-            GSTIN: {currentOrder.gstin}<br />
-            HSN: {currentOrder.hsn} &nbsp;|&nbsp; SAC: {currentOrder.sac}<br />
-            FSSAI: {currentOrder.fssai}
-          </div>
-
-          {/* Stay Connected */}
-          <div className="flex justify-center gap-6 mx-3">
-            <button onClick={() => handleSocialLink("https://www.instagram.com/cinepolisindia/?hl=en")} className="flex flex-col items-center">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-500 flex items-center justify-center mb-1">
-                <Instagram className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-[10px] font-medium text-gray-600">Instagram</span>
-            </button>
-            <button onClick={() => handleSocialLink("https://www.facebook.com/CinepolisIndia")} className="flex flex-col items-center">
-              <div className="w-9 h-9 rounded-full bg-[#1877F2] flex items-center justify-center mb-1">
-                <Facebook className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-[10px] font-medium text-gray-600">Facebook</span>
-            </button>
-            <button onClick={() => handleSocialLink("https://www.cinepolisindia.com")} className="flex flex-col items-center">
-              <div className="w-9 h-9 rounded-full bg-[#3D1B78] flex items-center justify-center mb-1">
-                <ExternalLink className="h-4 w-4 text-[#F9B233]" />
-              </div>
-              <span className="text-[10px] font-medium text-gray-600">Website</span>
-            </button>
-          </div>
-
-          {/* Powered By footer */}
-          <div className="flex items-center justify-center gap-1.5 py-2 text-gray-400">
-            <Zap className="h-3 w-3 fill-gray-300" />
-            <span className="text-[10px] font-medium">Digital billing powered by <span className="font-bold text-gray-500">SmartBill</span></span>
           </div>
 
           <div id="height-marker" style={{ height: "1px" }} />
         </div>
 
-        {/* Order History Modal */}
-        {showOrderHistory && (
+        {/* ============ TOAST ============ */}
+        {toast && (
+          <div className="pointer-events-none fixed bottom-6 left-1/2 z-[10000] -translate-x-1/2 rounded-full bg-[#3A1218] px-5 py-2.5 text-[12px] font-medium text-[#E7CF8E] shadow-xl" role="status">
+            {toast}
+          </div>
+        )}
+
+        {/* ============ ORDER HISTORY MODAL ============ */}
+        {showHistory && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowOrderHistory(false)} />
-            <div className="relative bg-white rounded-2xl w-full max-w-sm mx-4 shadow-2xl border border-gray-200 overflow-hidden">
-              <div className="flex justify-between items-center p-4 border-b border-gray-100">
-                <div className="flex items-center">
-                  <div className="bg-[#3D1B78] p-2 rounded-lg mr-3">
-                    <History className="h-4 w-4 text-[#F9B233]" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-gray-900">Order History</h3>
+            <div className="absolute inset-0 bg-[#1E0A0E]/60 backdrop-blur-sm" onClick={() => setShowHistory(false)} />
+            <div className="relative mx-4 w-full max-w-sm overflow-hidden rounded-[26px] border border-[#C9A24B]/50 bg-[#FFFDF8] shadow-2xl" role="dialog" aria-label="Order history">
+              <div className="flex items-center justify-between px-5 py-4" style={{ background: HERO_BG }}>
+                <div className="flex items-center gap-2.5">
+                  <History className="h-4 w-4 text-[#E7CF8E]" />
+                  <h3 className="text-[14px] font-medium tracking-[0.04em] text-[#FAF6EE]">Your Anaar orders</h3>
                 </div>
-                <button className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100" onClick={() => setShowOrderHistory(false)}>
-                  <X className="h-4 w-4 text-gray-500" />
+                <button type="button" aria-label="Close" onClick={() => setShowHistory(false)} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10">
+                  <X className="h-4 w-4 text-[#E7CF8E]" />
                 </button>
               </div>
-              <div className="max-h-80 overflow-y-auto p-4 space-y-3">
-                {orderHistory.map((order) => (
+              <div className="max-h-80 space-y-3 overflow-y-auto p-4">
+                {historyList.map((h) => (
                   <button
-                    key={order.id}
+                    key={h.id}
+                    type="button"
                     onClick={() => {
-                      setCurrentOrderId(order.id)
-                      setShowOrderHistory(false)
+                      setCurrentReceiptId(h.id)
+                      setShowHistory(false)
                       window.scrollTo({ top: 0, behavior: "smooth" })
                     }}
-                    className="w-full flex items-center p-3 bg-gray-50 border border-gray-200 rounded-xl hover:border-[#7742D8] transition"
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                      currentReceiptId === h.id ? "border-[#C9A24B] bg-[#FBF3DF]" : "border-[#E4D8C0] bg-[#FBF7EE] hover:border-[#903535]"
+                    }`}
                   >
-                    <div className="bg-white border border-gray-200 p-2 rounded-lg mr-3">
-                      <ShoppingBag className="h-4 w-4 text-[#3D1B78]" />
-                    </div>
-                    <div className="flex-grow text-left">
-                      <div className="text-sm font-semibold text-gray-900 line-clamp-1">{order.label}</div>
-                      <div className="text-[11px] text-gray-500">{order.date}</div>
-                    </div>
-                    <div className="text-sm font-semibold text-[#3D1B78]">{fmt(order.amount)}</div>
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                      <ShoppingBag className="h-4 w-4 text-[#E7CF8E]" />
+                    </span>
+                    <span className="flex-1">
+                      <span className="block text-[13px] font-medium text-[#2A1A1A]">{h.pieces} {h.pieces === 1 ? "piece" : "pieces"}</span>
+                      <span className="block text-[11px] text-[#8A7B72]">{h.date}</span>
+                    </span>
+                    <span className="text-[13px] font-semibold text-[#903535]">{fmt0(h.amount)}</span>
                   </button>
                 ))}
               </div>
