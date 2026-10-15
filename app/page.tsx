@@ -17,9 +17,7 @@ import {
   Facebook,
   ExternalLink,
   MapPin,
-  Gem,
   Sparkles,
-  Heart,
   Gift,
   Copy,
   Check,
@@ -203,12 +201,15 @@ const OCCASIONS = [
   { label: "Everyday", url: "https://shopanaar.com/collections/everyday-essentials" },
 ]
 
+/* Product images live in public/images and are 1000 x 800 px (5:4) */
+const LOOK_IMG_W = 1000
+const LOOK_IMG_H = 800
 const COMPLETE_THE_LOOK = [
-  { name: "Seaside Dazzler", kind: "Mobile Chain", price: 4990, url: "https://shopanaar.com/collections/mobile-chains", Icon: Gem },
-  { name: "Tribe Slingette", kind: "Clutch", price: 11990, url: "https://shopanaar.com/products/tribe-slingette-clutch", Icon: ShoppingBag },
-  { name: "Maharani Glow", kind: "Charm", price: 1200, url: "https://shopanaar.com/collections/charms", Icon: Sparkles },
-  { name: "Golden Alphabet", kind: "Charm", price: 150, url: "https://shopanaar.com/collections/charms", Icon: Heart },
-  { name: "Luna Mini Dazzler", kind: "Chain", price: 1990, url: "https://shopanaar.com/collections/mobile-chains", Icon: Gem },
+  { name: "Seaside Dazzler", kind: "Mobile Chain", price: 4990, url: "https://shopanaar.com/collections/mobile-chains", img: "/images/seaside.png" },
+  { name: "Tribe Slingette", kind: "Clutch", price: 11990, url: "https://shopanaar.com/products/tribe-slingette-clutch", img: "/images/tribe.png" },
+  { name: "Maharani Glow", kind: "Charm", price: 1200, url: "https://shopanaar.com/collections/charms", img: "/images/maharani.png" },
+  { name: "Golden Alphabet", kind: "Charm", price: 150, url: "https://shopanaar.com/collections/charms", img: "/images/golden.png" },
+  { name: "Luna Mini Dazzler", kind: "Chain", price: 1990, url: "https://shopanaar.com/collections/mobile-chains", img: "/images/luna.png" },
 ]
 
 const CARE_TIPS = [
@@ -578,10 +579,10 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
               <Image
                 src={LOGO_SRC}
                 alt="Anaar"
-                width={200}
-                height={60}
+                width={320}
+                height={160}
                 priority
-                className="mx-auto h-10 w-auto"
+                className="mx-auto h-[68px] w-auto"
               />
 
               <h1 className="mt-4 text-[20px] font-light leading-snug tracking-[0.01em]">
@@ -1008,12 +1009,18 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
             </div>
             <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
               <CarouselContent className="ml-5 mr-2">
-                {COMPLETE_THE_LOOK.map(({ name, kind, price, url, Icon }) => (
+                {COMPLETE_THE_LOOK.map(({ name, kind, price, url, img }) => (
                   <CarouselItem key={name} className="basis-[46%] pl-0 pr-3">
                     <a href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-[20px] border border-[#EDE3D2] bg-[#FBF7EE]">
-                      <div className="relative flex h-[104px] items-center justify-center" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
-                        <JaliPattern />
-                        <Icon className="relative h-8 w-8 text-[#E7CF8E]" />
+                      <div className="relative aspect-[5/4] w-full overflow-hidden bg-[#F3EAD3]">
+                        <Image
+                          src={img}
+                          alt={name}
+                          width={LOOK_IMG_W}
+                          height={LOOK_IMG_H}
+                          sizes="180px"
+                          className="h-full w-full object-cover"
+                        />
                       </div>
                       <div className="p-3">
                         <div className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#B08A35]">{kind}</div>
