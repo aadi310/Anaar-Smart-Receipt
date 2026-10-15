@@ -1182,7 +1182,7 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
             <GoldRule />
             <div className="mt-4 flex items-center justify-center gap-2 text-[10.5px] text-[#A39688]">
               <span>Powered by</span>
-              <Image src="/images/RDEP%20cropped.png" alt="RDEP" width={120} height={40} className="h-5 w-auto" />
+              <Image src="/images/design-mode/RDEP%20cropped.png" alt="RDEP" width={120} height={40} className="h-5 w-auto" />
             </div>
           </div>
 
