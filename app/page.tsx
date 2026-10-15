@@ -29,7 +29,6 @@ import {
   Package,
   Clock,
   ShoppingBag,
-  CalendarDays,
   FileText,
 } from "lucide-react"
 
@@ -48,8 +47,17 @@ const GOLD_FOIL = "linear-gradient(135deg,#F1DDA0 0%,#C9A24B 38%,#A9822F 62%,#E7
 const HERO_BG =
   "radial-gradient(120% 90% at 50% 0%, #7A2A30 0%, #5A1D25 45%, #3A1218 100%)"
 
-/* Optional: set to the real Anaar logo (gold, transparent PNG/SVG). Falls back to a wordmark. */
-const LOGO_SRC = ""
+/* Anaar logo and banner creatives live in public/images */
+const LOGO_SRC = "/images/Anaar%20Logo.png"
+
+/* Banner carousel: creatives are 1920 x 755 px. Update the links if the banners point elsewhere. */
+const BANNER_W = 1920
+const BANNER_H = 755
+const BANNERS = [
+  { src: "/images/banner-1.png", alt: "Personalise and customise your Anaar pair", href: "https://shopanaar.com/pages/personalise-customise" },
+  { src: "/images/banner-2.png", alt: "Anaar e-gift cards", href: "https://shopanaar.com/pages/gift-page" },
+  { src: "/images/banner-3.png", alt: "Anaar new arrivals", href: "https://shopanaar.com/collections/new-in" },
+]
 
 /* Boutique details — replace with the store's real values before going live. */
 const STORE = {
@@ -277,52 +285,50 @@ function JaliPattern() {
   )
 }
 
-/* A stylised pomegranate with a crown — the "anaar" — drawn in gold foil */
-function Pomegranate({ size = 96 }: { size?: number }) {
-  const seeds: Array<[number, number]> = [
-    [42, 52], [50, 48], [58, 52], [38, 62], [46, 60], [54, 60], [62, 62], [42, 70], [50, 68], [58, 70], [50, 77],
-  ]
+/* Circular "paid" stamp: concentric rings, WITH LOVE on the top arc, ANAAR on the bottom arc */
+function PaidSeal({ size = 72 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden="true">
-      <defs>
-        <linearGradient id="anaarFoil" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#F1DDA0" />
-          <stop offset="45%" stopColor="#C9A24B" />
-          <stop offset="100%" stopColor="#A9822F" />
-        </linearGradient>
-      </defs>
-      <path d="M38 34 L42 24 L46 31 L50 22 L54 31 L58 24 L62 34 Z" fill="none" stroke="url(#anaarFoil)" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M50 35 C30 35 22 52 26 66 C30 80 42 86 50 86 C58 86 70 80 74 66 C78 52 70 35 50 35 Z" fill="none" stroke="url(#anaarFoil)" strokeWidth="1.8" />
-      {seeds.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r="2.6" fill="url(#anaarFoil)" opacity={0.9} />
-      ))}
-    </svg>
-  )
-}
-
-/* Circular "paid" seal — original, pomegranate-crown mark */
-function PaidSeal() {
-  return (
-    <svg viewBox="0 0 100 100" width="56" height="56" className="shrink-0" style={{ transform: "rotate(-10deg)" }} aria-label="Paid">
+    <svg
+      viewBox="0 0 100 100"
+      width={size}
+      height={size}
+      className="shrink-0"
+      style={{ transform: "rotate(-8deg)" }}
+      role="img"
+      aria-label="Paid"
+    >
       <defs>
         <linearGradient id="anaarSealFoil" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#F1DDA0" />
           <stop offset="50%" stopColor="#C9A24B" />
-          <stop offset="100%" stopColor="#A9822F" />
+          <stop offset="100%" stopColor="#E7CF8E" />
         </linearGradient>
-        <path id="anaarSealTop" d="M 14,50 A 36,36 0 1,1 86,50" fill="none" />
-        <path id="anaarSealBottom" d="M 14,53 A 36,36 0 1,0 86,53" fill="none" />
+        {/* top text reads left to right over the top, glyphs point outward */}
+        <path id="anaarSealTop" d="M 18.5,50 A 31.5,31.5 0 0 1 81.5,50" fill="none" />
+        {/* bottom text reads left to right under the bottom, glyphs stay upright */}
+        <path id="anaarSealBottom" d="M 14,50 A 36,36 0 0 0 86,50" fill="none" />
       </defs>
-      <circle cx="50" cy="50" r="47" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="2" strokeDasharray="2.4 3.2" />
-      <circle cx="50" cy="50" r="40" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="1" />
-      <circle cx="50" cy="50" r="27" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="0.8" />
-      <text fontSize="6.2" fontWeight="600" fill="#E7CF8E" letterSpacing="1.6">
+
+      <circle cx="50" cy="50" r="48" fill="rgba(58,18,24,0.55)" />
+      <circle cx="50" cy="50" r="46.5" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="1.6" strokeDasharray="1.2 2.8" strokeLinecap="round" />
+      <circle cx="50" cy="50" r="41" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="1.2" />
+      <circle cx="50" cy="50" r="26" fill="none" stroke="url(#anaarSealFoil)" strokeWidth="1" />
+
+      <text fontSize="6.6" fontWeight="600" fill="#F1DDA0" letterSpacing="1.8" style={{ fontFamily: "var(--font-poppins)" }}>
         <textPath href="#anaarSealTop" startOffset="50%" textAnchor="middle">WITH LOVE</textPath>
       </text>
-      <text x="50" y="55" fontSize="15" fontWeight="600" fill="url(#anaarSealFoil)" textAnchor="middle" letterSpacing="1.5">PAID</text>
-      <text fontSize="6.2" fontWeight="600" fill="#E7CF8E" letterSpacing="1.6">
+      <text fontSize="6.6" fontWeight="600" fill="#F1DDA0" letterSpacing="1.8" style={{ fontFamily: "var(--font-poppins)" }}>
         <textPath href="#anaarSealBottom" startOffset="50%" textAnchor="middle">ANAAR</textPath>
       </text>
+
+      {/* separators between the two arcs */}
+      <path d="M 10.2 50 l 2.4 -2.2 l 2.4 2.2 l -2.4 2.2 z" fill="#E7CF8E" transform="translate(2.4 0)" />
+      <path d="M 10.2 50 l 2.4 -2.2 l 2.4 2.2 l -2.4 2.2 z" fill="#E7CF8E" transform="translate(74.8 0)" />
+
+      <text x="50" y="55.2" fontSize="14" fontWeight="700" fill="url(#anaarSealFoil)" textAnchor="middle" letterSpacing="1.4" style={{ fontFamily: "var(--font-poppins)" }}>
+        PAID
+      </text>
+      <path d="M 40 60.5 H 60" stroke="url(#anaarSealFoil)" strokeWidth="0.8" strokeLinecap="round" />
     </svg>
   )
 }
@@ -349,7 +355,7 @@ export default function Home() {
   const [feedbackText, setFeedbackText] = useState("")
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
 
-  const [tribe, setTribe] = useState({ name: customerName, mobile: "", email: "", occasion: "", date: "" })
+  const [tribe, setTribe] = useState({ name: customerName, mobile: "", email: "" })
   const [tribeSubmitted, setTribeSubmitted] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -481,9 +487,8 @@ export default function Home() {
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Poppins',sans-serif;font-size:13px;color:#1E1616;background:#fff;width:800px;margin:0 auto;padding:32px;}
-.head{text-align:center;padding-bottom:22px;border-bottom:1px solid #C9A24B;margin-bottom:22px;}
-.head h1{font-size:30px;font-weight:300;letter-spacing:12px;color:#903535;padding-left:12px;}
-.head p{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#B08A35;margin-top:6px;}
+.head{text-align:center;padding:22px 0 18px;background:#3A1218;border-bottom:3px solid #C9A24B;margin-bottom:22px;}
+.head p{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#E7CF8E;margin-top:10px;}
 .meta{display:flex;justify-content:space-between;font-size:12px;line-height:1.8;margin-bottom:22px;}
 .meta .r{text-align:right;}
 .cust{background:#FAF6EE;border-left:3px solid #C9A24B;padding:14px 16px;margin-bottom:22px;font-size:12px;color:#5b4b45;}
@@ -504,7 +509,7 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
 </style>
 </head>
 <body>
-<div class="head"><h1>ANAAR</h1><p>Tax Invoice</p></div>
+<div class="head"><img src="${window.location.origin}${LOGO_SRC}" alt="Anaar" style="height:44px;width:auto;display:inline-block;"><p>Tax Invoice</p></div>
 <div class="meta">
   <div><strong>${STORE.name}</strong><br>GSTIN: ${STORE.gstin}<br>Styled by ${receipt.associate}</div>
   <div class="r">Receipt no. <strong>${receipt.id}</strong><br>${receipt.date} · ${receipt.time}<br>Paid via ${receipt.payment}</div>
@@ -549,31 +554,6 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
     amount: RECEIPTS[id].total,
   }))
 
-  const promoSlides = [
-    {
-      eyebrow: "Personalise",
-      title: "Make your pair unmistakably yours",
-      body: "Initials, charms and custom embellishments, crafted by hand.",
-      cta: "Personalise & Customise",
-      url: "https://shopanaar.com/pages/personalise-customise",
-    },
-    {
-      eyebrow: "Gift of Love",
-      title: "Not sure of her size? Gift an e-card",
-      body: "Beautiful themed e-gift cards for every celebration.",
-      cta: "Send a Gift Card",
-      url: "https://shopanaar.com/pages/gift-page",
-    },
-    {
-      eyebrow: "Anaar Edit",
-      title: "15% off on orders above ₹15,000",
-      body: "Use the code below on shopanaar.com.",
-      cta: "ANAAR15",
-      code: "ANAAR15",
-      url: "https://shopanaar.com/collections/new-in",
-    },
-  ]
-
   const feedbackTags =
     rating >= 4
       ? ["Boutique experience", "Craftsmanship", "Comfort", "Design & detailing", "Packaging", "Styling help"]
@@ -589,53 +569,37 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
       >
         <div className="flex w-full flex-col gap-4 pb-6 pt-4">
           {/* ============ HERO ============ */}
-          <section className="relative mx-3 overflow-hidden rounded-[32px] text-[#FAF6EE]" style={{ background: HERO_BG }}>
+          <section className="relative mx-3 overflow-hidden rounded-[28px] text-[#FAF6EE]" style={{ background: HERO_BG }}>
             <JaliPattern />
-            <div className="absolute -top-20 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-[#C9A24B]/20 blur-3xl" />
-            <div className="absolute inset-[10px] rounded-[24px] border border-[#C9A24B]/35" />
+            <div className="absolute -top-16 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-[#C9A24B]/20 blur-3xl" />
+            <div className="pointer-events-none absolute inset-[8px] rounded-[21px] border border-[#C9A24B]/35" />
 
-            <div className="relative z-10 px-7 pb-8 pt-9 text-center">
-              {LOGO_SRC ? (
-                <img src={LOGO_SRC} alt="Anaar" className="mx-auto h-9 w-auto" />
-              ) : (
-                <GoldText className="block pl-[0.5em] text-[30px] font-light tracking-[0.5em]">ANAAR</GoldText>
-              )}
-              <div className="mt-2 text-[9.5px] font-medium uppercase tracking-[0.34em] text-[#E7CF8E]/80">
-                Handcrafted for every celebration
-              </div>
+            <div className="relative z-10 px-6 pb-6 pt-7 text-center">
+              <Image
+                src={LOGO_SRC}
+                alt="Anaar"
+                width={200}
+                height={60}
+                priority
+                className="mx-auto h-10 w-auto"
+              />
 
-              {/* arch */}
-              <div className="mx-auto mt-7 h-[178px] w-[142px] rounded-t-[999px] rounded-b-[18px] border border-[#C9A24B]/70 p-[5px]">
-                <div
-                  className="relative flex h-full w-full flex-col items-center justify-center rounded-t-[999px] rounded-b-[13px]"
-                  style={{ background: "linear-gradient(180deg,#4A1820 0%,#2E0E14 100%)" }}
-                >
-                  <Pomegranate size={92} />
-                  <div className="mt-1 text-[8.5px] font-medium uppercase tracking-[0.34em] text-[#E7CF8E]">Thank you</div>
-                </div>
-              </div>
-
-              <h1 className="mt-6 text-[26px] font-light leading-tight tracking-[0.01em]">
-                Congratulations, <span className="font-medium">{customerName}</span>
+              <h1 className="mt-4 text-[20px] font-light leading-snug tracking-[0.01em]">
+                Thank you for shopping, <span className="font-medium">{customerName}</span>
               </h1>
-              <p className="mx-auto mt-2 max-w-[260px] text-[13px] leading-relaxed text-[#FAF6EE]/70">
-                Your Anaar pieces are ready to walk into every beautiful moment.
-              </p>
 
-              {/* amount */}
-              <div className="relative mt-7 rounded-[22px] border border-[#C9A24B]/45 bg-black/15 px-5 py-5 backdrop-blur-sm">
-                <div className="flex items-center justify-between gap-3 text-left">
-                  <div>
-                    <div className="text-[10px] font-medium uppercase tracking-[0.3em] text-[#E7CF8E]/80">Amount paid</div>
-                    <GoldText className="mt-1.5 block text-[40px] font-light leading-none tracking-tight">
-                      {fmt0(receipt.total)}
-                    </GoldText>
-                    <div className="mt-2.5 text-[11.5px] text-[#FAF6EE]/55">
-                      Inclusive of GST · {itemCount} {itemCount === 1 ? "piece" : "pieces"}
-                    </div>
+              {/* amount + paid stamp */}
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-[20px] border border-[#C9A24B]/45 bg-black/15 px-5 py-4 text-left backdrop-blur-sm">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-medium uppercase tracking-[0.3em] text-[#E7CF8E]/80">Amount paid</div>
+                  <GoldText className="mt-1 block text-[36px] font-light leading-none tracking-tight">
+                    {fmt0(receipt.total)}
+                  </GoldText>
+                  <div className="mt-2 text-[11px] text-[#FAF6EE]/55">
+                    Inclusive of GST · {itemCount} {itemCount === 1 ? "piece" : "pieces"}
                   </div>
-                  <PaidSeal />
                 </div>
+                <PaidSeal size={76} />
               </div>
             </div>
           </section>
@@ -860,238 +824,6 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
             </div>
           </Card>
 
-          {/* ============ HANDCRAFTED PROMISE ============ */}
-          <Card className="p-5">
-            <SectionTitle eyebrow="The Anaar promise" title="Crafted by hand, kept with care" />
-            <div className="grid grid-cols-3 gap-2.5">
-              {[
-                { Icon: Hand, t: "Handcrafted", s: "By skilled artisans" },
-                { Icon: Sparkles, t: "Embellished", s: "Zari, zardozi & more" },
-                { Icon: Package, t: "Made to last", s: "Comfort for hours" },
-              ].map(({ Icon, t, s }) => (
-                <div key={t} className="rounded-2xl border border-[#EDE3D2] bg-[#FBF7EE] px-2 py-3.5 text-center">
-                  <Icon className="mx-auto h-5 w-5 text-[#B08A35]" />
-                  <div className="mt-2 text-[11.5px] font-medium text-[#2A1A1A]">{t}</div>
-                  <div className="mt-0.5 text-[9.5px] leading-snug text-[#8A7B72]">{s}</div>
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowCare(!showCare)}
-              aria-expanded={showCare}
-              className="mt-4 flex w-full items-center justify-between rounded-2xl border border-[#C9A24B]/50 bg-[#FBF3DF] px-4 py-3 text-left"
-            >
-              <span className="text-[12px] font-medium text-[#6B4F10]">Care guide for your pieces</span>
-              <ChevronRight className={`h-4 w-4 text-[#B08A35] transition-transform ${showCare ? "rotate-90" : ""}`} />
-            </button>
-            {showCare && (
-              <ul className="mt-3 space-y-2.5 px-1">
-                {CARE_TIPS.map((tip) => (
-                  <li key={tip} className="flex gap-2.5 text-[12px] leading-relaxed text-[#5B4B45]">
-                    <Diamond className="mt-[7px] shrink-0" />
-                    {tip}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <a href={BRAND.returnPolicy} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-1.5 text-[11.5px] font-medium text-[#903535]">
-              <FileText className="h-3.5 w-3.5" /> Return &amp; exchange policy
-            </a>
-          </Card>
-
-          {/* ============ PROMO CAROUSEL ============ */}
-          <Card className="relative overflow-hidden">
-            <Carousel className="w-full" setApi={setPromoApi} opts={{ loop: true }}>
-              <CarouselContent>
-                {promoSlides.map((s) => (
-                  <CarouselItem key={s.eyebrow}>
-                    <div className="relative px-6 pb-12 pt-7 text-center text-[#FAF6EE]" style={{ background: HERO_BG }}>
-                      <JaliPattern />
-                      <div className="relative z-10">
-                        <div className="text-[10px] font-medium uppercase tracking-[0.32em] text-[#E7CF8E]">{s.eyebrow}</div>
-                        <div className="mx-auto mt-2.5 max-w-[250px] text-[19px] font-light leading-snug">{s.title}</div>
-                        <div className="mx-auto mt-2 max-w-[250px] text-[12px] leading-relaxed text-[#FAF6EE]/65">{s.body}</div>
-                        {s.code ? (
-                          <button
-                            type="button"
-                            onClick={() => copyCode(s.code!)}
-                            className="mx-auto mt-4 inline-flex items-center gap-2 rounded-full border border-dashed border-[#E7CF8E] px-5 py-2 text-[12px] font-semibold tracking-[0.2em] text-[#E7CF8E]"
-                          >
-                            {s.cta} <Copy className="h-3.5 w-3.5" />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => openLink(s.url)}
-                            className="mx-auto mt-4 inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-[12px] font-semibold text-[#3A1218]"
-                            style={{ backgroundImage: GOLD_FOIL }}
-                          >
-                            {s.cta} <ExternalLink className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-              <div className="absolute bottom-4 left-0 right-0 z-10 flex justify-center gap-1.5">
-                {promoSlides.map((s, i) => (
-                  <button
-                    key={s.eyebrow}
-                    type="button"
-                    aria-label={`Go to slide ${i + 1}`}
-                    onClick={() => promoApi?.scrollTo(i)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${promoSlide === i ? "w-5 bg-[#E7CF8E]" : "w-1.5 bg-white/40"}`}
-                  />
-                ))}
-              </div>
-            </Carousel>
-          </Card>
-
-          {/* ============ SAVE THE DATE / ANAAR TRIBE ============ */}
-          <Card className="p-5">
-            {tribeSubmitted ? (
-              <div className="py-3 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
-                  <Check className="h-6 w-6 text-[#E7CF8E]" />
-                </div>
-                <div className="mt-4 text-[18px] font-light text-[#2A1A1A]">Welcome to the Tribe, {tribe.name.split(" ")[0]}</div>
-                <p className="mx-auto mt-1.5 max-w-[250px] text-[12px] leading-relaxed text-[#8A7B72]">
-                  We&apos;ll keep your date in mind and send styling inspiration your way. Here&apos;s a little welcome gift.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => copyCode("ANAARTRIBE10")}
-                  className="mx-auto mt-4 flex items-center gap-2.5 rounded-2xl border border-dashed border-[#C9A24B] bg-[#FBF3DF] px-5 py-3"
-                >
-                  <Gift className="h-4 w-4 text-[#903535]" />
-                  <span className="text-[14px] font-semibold tracking-[0.2em] text-[#903535]">ANAARTRIBE10</span>
-                  <Copy className="h-3.5 w-3.5 text-[#B08A35]" />
-                </button>
-                <div className="mt-2 text-[10.5px] text-[#8A7B72]">10% off on shopanaar.com</div>
-              </div>
-            ) : (
-              <>
-                <SectionTitle eyebrow="Save the date" title="Join the Anaar Tribe" />
-                <p className="-mt-2 mb-4 text-[12px] leading-relaxed text-[#8A7B72]">
-                  Tell us about your celebration and unlock a welcome reward, fresh designs and styling inspiration.
-                </p>
-
-                <div className="space-y-3">
-                  {[
-                    { key: "name", label: "Full name", type: "text", ph: "e.g. Ananya Rao" },
-                    { key: "mobile", label: "Mobile number", type: "tel", ph: "e.g. 98XXXXXXXX" },
-                    { key: "email", label: "Email address", type: "email", ph: "name@email.com" },
-                  ].map((f) => (
-                    <label key={f.key} className="block">
-                      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A7B72]">{f.label}</span>
-                      <input
-                        type={f.type}
-                        placeholder={f.ph}
-                        value={tribe[f.key as "name" | "mobile" | "email"]}
-                        onChange={(e) => setTribe((p) => ({ ...p, [f.key]: e.target.value }))}
-                        className="mt-1 w-full rounded-xl border border-[#E4D8C0] bg-white px-3.5 py-2.5 text-[13px] text-[#2A1A1A] outline-none placeholder:text-[#C2B6A6] focus:border-[#903535] focus:ring-1 focus:ring-[#903535]"
-                      />
-                    </label>
-                  ))}
-
-                  <div>
-                    <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A7B72]">Your occasion</span>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {OCCASIONS.map((o) => (
-                        <button
-                          key={o.label}
-                          type="button"
-                          onClick={() => setTribe((p) => ({ ...p, occasion: p.occasion === o.label ? "" : o.label }))}
-                          className={`rounded-full border px-3 py-1.5 text-[11px] transition ${
-                            tribe.occasion === o.label ? "border-[#903535] bg-[#903535] text-white" : "border-[#E4D8C0] bg-[#FBF7EE] text-[#6B5A52]"
-                          }`}
-                        >
-                          {o.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <label className="block">
-                    <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A7B72]">
-                      <CalendarDays className="h-3 w-3" /> Date of celebration
-                    </span>
-                    <input
-                      type="date"
-                      value={tribe.date}
-                      onChange={(e) => setTribe((p) => ({ ...p, date: e.target.value }))}
-                      className="mt-1 w-full rounded-xl border border-[#E4D8C0] bg-white px-3.5 py-2.5 text-[13px] text-[#2A1A1A] outline-none focus:border-[#903535] focus:ring-1 focus:ring-[#903535]"
-                    />
-                  </label>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleTribeSubmit}
-                  className="mt-5 h-11 w-full rounded-xl text-[12.5px] font-semibold text-[#3A1218] transition active:scale-[0.98]"
-                  style={{ backgroundImage: GOLD_FOIL }}
-                >
-                  Join &amp; unlock my reward
-                </button>
-                <p className="mt-2.5 text-center text-[10px] text-[#A39688]">Free to join. Unsubscribe anytime.</p>
-              </>
-            )}
-          </Card>
-
-          {/* ============ COMPLETE THE LOOK ============ */}
-          <Card className="overflow-hidden py-5">
-            <div className="px-5">
-              <SectionTitle eyebrow="Finishing touches" title="Complete the Look" />
-            </div>
-            <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
-              <CarouselContent className="ml-5 mr-2">
-                {COMPLETE_THE_LOOK.map(({ name, kind, price, url, Icon }) => (
-                  <CarouselItem key={name} className="basis-[46%] pl-0 pr-3">
-                    <a href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-[20px] border border-[#EDE3D2] bg-[#FBF7EE]">
-                      <div className="relative flex h-[104px] items-center justify-center" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
-                        <JaliPattern />
-                        <Icon className="relative h-8 w-8 text-[#E7CF8E]" />
-                      </div>
-                      <div className="p-3">
-                        <div className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#B08A35]">{kind}</div>
-                        <div className="mt-1 truncate text-[12.5px] font-medium text-[#2A1A1A]">{name}</div>
-                        <div className="mt-1 flex items-center justify-between">
-                          <span className="text-[12px] font-semibold text-[#903535]">{fmt0(price)}</span>
-                          <ChevronRight className="h-3.5 w-3.5 text-[#B08A35]" />
-                        </div>
-                      </div>
-                    </a>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-            </Carousel>
-          </Card>
-
-          {/* ============ SHOP BY OCCASION ============ */}
-          <Card className="p-5">
-            <SectionTitle eyebrow="For every function" title="Shop by Occasion" />
-            <div className="grid grid-cols-2 gap-2.5">
-              {OCCASIONS.map((o, i) => (
-                <a
-                  key={o.label}
-                  href={o.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group relative overflow-hidden rounded-2xl border border-[#E4D8C0] bg-[#FBF7EE] px-3.5 py-3.5"
-                >
-                  <div className="text-[9px] font-medium tracking-[0.3em] text-[#B08A35]">{String(i + 1).padStart(2, "0")}</div>
-                  <div className="mt-1.5 text-[12.5px] font-medium leading-snug text-[#2A1A1A]">{o.label}</div>
-                  <div className="mt-2 flex items-center gap-1 text-[10.5px] font-medium text-[#903535]">
-                    Explore <ChevronRight className="h-3 w-3" />
-                  </div>
-                </a>
-              ))}
-            </div>
-          </Card>
-
           {/* ============ RATE EXPERIENCE ============ */}
           <Card className="p-5">
             {feedbackSubmitted ? (
@@ -1170,6 +902,195 @@ td{padding:14px 8px;border-bottom:1px solid #E9DFCF;vertical-align:top;font-size
                 </button>
               </>
             )}
+          </Card>
+
+          {/* ============ BANNER CAROUSEL ============ */}
+          <Card className="relative overflow-hidden">
+            <Carousel className="w-full" setApi={setPromoApi} opts={{ loop: true }}>
+              <CarouselContent className="ml-0">
+                {BANNERS.map((b, i) => (
+                  <CarouselItem key={b.src} className="pl-0">
+                    <a href={b.href} target="_blank" rel="noopener noreferrer" className="block">
+                      <Image
+                        src={b.src}
+                        alt={b.alt}
+                        width={BANNER_W}
+                        height={BANNER_H}
+                        sizes="(max-width: 448px) 100vw, 448px"
+                        priority={i === 0}
+                        className="h-auto w-full"
+                      />
+                    </a>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <div className="absolute bottom-2.5 left-0 right-0 z-10 flex justify-center">
+                <div className="flex gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 backdrop-blur-sm">
+                  {BANNERS.map((b, i) => (
+                    <button
+                      key={b.src}
+                      type="button"
+                      aria-label={`Go to banner ${i + 1}`}
+                      onClick={() => promoApi?.scrollTo(i)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${promoSlide === i ? "w-5 bg-[#E7CF8E]" : "w-1.5 bg-white/60"}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </Carousel>
+          </Card>
+
+          {/* ============ LOYALTY ============ */}
+          <Card className="p-5">
+            {tribeSubmitted ? (
+              <div className="py-3 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                  <Check className="h-6 w-6 text-[#E7CF8E]" />
+                </div>
+                <div className="mt-4 text-[18px] font-light text-[#2A1A1A]">Welcome to the Tribe, {tribe.name.split(" ")[0]}</div>
+                <p className="mx-auto mt-1.5 max-w-[250px] text-[12px] leading-relaxed text-[#8A7B72]">
+                  You&apos;re in. Here&apos;s a little welcome gift for your next order.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => copyCode("ANAARTRIBE10")}
+                  className="mx-auto mt-4 flex items-center gap-2.5 rounded-2xl border border-dashed border-[#C9A24B] bg-[#FBF3DF] px-5 py-3"
+                >
+                  <Gift className="h-4 w-4 text-[#903535]" />
+                  <span className="text-[14px] font-semibold tracking-[0.2em] text-[#903535]">ANAARTRIBE10</span>
+                  <Copy className="h-3.5 w-3.5 text-[#B08A35]" />
+                </button>
+                <div className="mt-2 text-[10.5px] text-[#8A7B72]">10% off on shopanaar.com</div>
+              </div>
+            ) : (
+              <>
+                <SectionTitle eyebrow="Loyalty" title="Join the Anaar Tribe" />
+                <p className="-mt-2 mb-4 text-[12px] leading-relaxed text-[#8A7B72]">
+                  Become a member to get a welcome reward and early access to new designs.
+                </p>
+
+                <div className="space-y-3">
+                  {[
+                    { key: "name", label: "Full name", type: "text", ph: "e.g. Ananya Rao" },
+                    { key: "mobile", label: "Mobile number", type: "tel", ph: "e.g. 98XXXXXXXX" },
+                    { key: "email", label: "Email (optional)", type: "email", ph: "name@email.com" },
+                  ].map((f) => (
+                    <label key={f.key} className="block">
+                      <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#8A7B72]">{f.label}</span>
+                      <input
+                        type={f.type}
+                        placeholder={f.ph}
+                        value={tribe[f.key as "name" | "mobile" | "email"]}
+                        onChange={(e) => setTribe((p) => ({ ...p, [f.key]: e.target.value }))}
+                        className="mt-1 w-full rounded-xl border border-[#E4D8C0] bg-white px-3.5 py-2.5 text-[13px] text-[#2A1A1A] outline-none placeholder:text-[#C2B6A6] focus:border-[#903535] focus:ring-1 focus:ring-[#903535]"
+                      />
+                    </label>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTribeSubmit}
+                  className="mt-5 h-11 w-full rounded-xl text-[12.5px] font-semibold text-[#3A1218] transition active:scale-[0.98]"
+                  style={{ backgroundImage: GOLD_FOIL }}
+                >
+                  Join &amp; unlock my reward
+                </button>
+                <p className="mt-2.5 text-center text-[10px] text-[#A39688]">Free to join. Unsubscribe anytime.</p>
+              </>
+            )}
+          </Card>
+
+          {/* ============ COMPLETE THE LOOK ============ */}
+          <Card className="overflow-hidden py-5">
+            <div className="px-5">
+              <SectionTitle eyebrow="Finishing touches" title="Complete the Look" />
+            </div>
+            <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+              <CarouselContent className="ml-5 mr-2">
+                {COMPLETE_THE_LOOK.map(({ name, kind, price, url, Icon }) => (
+                  <CarouselItem key={name} className="basis-[46%] pl-0 pr-3">
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-[20px] border border-[#EDE3D2] bg-[#FBF7EE]">
+                      <div className="relative flex h-[104px] items-center justify-center" style={{ background: "linear-gradient(145deg,#7A2A30,#3A1218)" }}>
+                        <JaliPattern />
+                        <Icon className="relative h-8 w-8 text-[#E7CF8E]" />
+                      </div>
+                      <div className="p-3">
+                        <div className="text-[9px] font-medium uppercase tracking-[0.2em] text-[#B08A35]">{kind}</div>
+                        <div className="mt-1 truncate text-[12.5px] font-medium text-[#2A1A1A]">{name}</div>
+                        <div className="mt-1 flex items-center justify-between">
+                          <span className="text-[12px] font-semibold text-[#903535]">{fmt0(price)}</span>
+                          <ChevronRight className="h-3.5 w-3.5 text-[#B08A35]" />
+                        </div>
+                      </div>
+                    </a>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+          </Card>
+
+          {/* ============ SHOP BY OCCASION ============ */}
+          <Card className="p-5">
+            <SectionTitle eyebrow="For every function" title="Shop by Occasion" />
+            <div className="grid grid-cols-2 gap-2.5">
+              {OCCASIONS.map((o, i) => (
+                <a
+                  key={o.label}
+                  href={o.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative overflow-hidden rounded-2xl border border-[#E4D8C0] bg-[#FBF7EE] px-3.5 py-3.5"
+                >
+                  <div className="text-[9px] font-medium tracking-[0.3em] text-[#B08A35]">{String(i + 1).padStart(2, "0")}</div>
+                  <div className="mt-1.5 text-[12.5px] font-medium leading-snug text-[#2A1A1A]">{o.label}</div>
+                  <div className="mt-2 flex items-center gap-1 text-[10.5px] font-medium text-[#903535]">
+                    Explore <ChevronRight className="h-3 w-3" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </Card>
+
+          {/* ============ HANDCRAFTED PROMISE ============ */}
+          <Card className="p-5">
+            <SectionTitle eyebrow="The Anaar promise" title="Crafted by hand, kept with care" />
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                { Icon: Hand, t: "Handcrafted", s: "By skilled artisans" },
+                { Icon: Sparkles, t: "Embellished", s: "Zari, zardozi & more" },
+                { Icon: Package, t: "Made to last", s: "Comfort for hours" },
+              ].map(({ Icon, t, s }) => (
+                <div key={t} className="rounded-2xl border border-[#EDE3D2] bg-[#FBF7EE] px-2 py-3.5 text-center">
+                  <Icon className="mx-auto h-5 w-5 text-[#B08A35]" />
+                  <div className="mt-2 text-[11.5px] font-medium text-[#2A1A1A]">{t}</div>
+                  <div className="mt-0.5 text-[9.5px] leading-snug text-[#8A7B72]">{s}</div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowCare(!showCare)}
+              aria-expanded={showCare}
+              className="mt-4 flex w-full items-center justify-between rounded-2xl border border-[#C9A24B]/50 bg-[#FBF3DF] px-4 py-3 text-left"
+            >
+              <span className="text-[12px] font-medium text-[#6B4F10]">Care guide for your pieces</span>
+              <ChevronRight className={`h-4 w-4 text-[#B08A35] transition-transform ${showCare ? "rotate-90" : ""}`} />
+            </button>
+            {showCare && (
+              <ul className="mt-3 space-y-2.5 px-1">
+                {CARE_TIPS.map((tip) => (
+                  <li key={tip} className="flex gap-2.5 text-[12px] leading-relaxed text-[#5B4B45]">
+                    <Diamond className="mt-[7px] shrink-0" />
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <a href={BRAND.returnPolicy} target="_blank" rel="noopener noreferrer" className="mt-4 flex items-center justify-center gap-1.5 text-[11.5px] font-medium text-[#903535]">
+              <FileText className="h-3.5 w-3.5" /> Return &amp; exchange policy
+            </a>
           </Card>
 
           {/* ============ CONCIERGE ============ */}
